@@ -81,8 +81,6 @@ extern "C" {
 
 /* RETRO_LANGUAGE_ASTURIAN */
 
-/* RETRO_LANGUAGE_FINNISH */
-
 #ifdef __cplusplus
 }
 #endif

@@ -7,7 +7,6 @@ namespace glsl {
 	class ShaderPart
 	{
 	public:
-		virtual ~ShaderPart() {}
 		virtual void write(std::stringstream & shader) const
 		{
 			shader << m_part;

@@ -23,7 +23,6 @@ extern "C" {
 #endif
 uint32_t get_retro_screen_width();
 uint32_t get_retro_screen_height();
-#include <main/netplay.h>
 #ifdef __cplusplus
 }
 #endif
@@ -39,7 +38,6 @@ private:
 
 	bool _start() override;
 	void _stop() override;
-	void _restart() override;
 	void _swapBuffers() override;
 	void _saveScreenshot() override;
 	void _saveBufferContent(graphics::ObjectHandle _fbo, CachedTexture *_pTexture) override;
@@ -47,9 +45,6 @@ private:
 	void _changeWindow() override;
 	void _readScreen(void **_pDest, long *_pWidth, long *_pHeight) override;
 	void _readScreen2(void * _dest, int * _width, int * _height, int _front) override;
-#ifdef M64P_GLIDENUI
-	bool _supportsWithRateFunctions = true;
-#endif // M64P_GLIDENUI
 	graphics::ObjectHandle _getDefaultFramebuffer() override;
 };
 
@@ -89,24 +84,10 @@ void DisplayWindowMupen64plus::_stop()
     FunctionWrapper::CoreVideo_Quit();
 }
 
-void DisplayWindowMupen64plus::_restart()
-{
-#ifdef M64P_GLIDENUI
-	if (_supportsWithRateFunctions && m_bFullscreen) {
-		m_resizeWidth = config.video.fullscreenWidth;
-		m_resizeHeight = config.video.fullscreenHeight;
-	} else {
-		m_resizeWidth = config.video.windowedWidth;
-		m_resizeHeight = config.video.windowedHeight;
-	}
-#endif // M64P_GLIDENUI
-}
-
 void DisplayWindowMupen64plus::_swapBuffers()
 {
 	//Don't let the command queue grow too big buy waiting on no more swap buffers being queued
-	if(!netplay_lag())
-		FunctionWrapper::WaitForSwapBuffersQueued();
+	FunctionWrapper::WaitForSwapBuffersQueued();
 	FunctionWrapper::CoreVideo_GL_SwapBuffers();
 }
 

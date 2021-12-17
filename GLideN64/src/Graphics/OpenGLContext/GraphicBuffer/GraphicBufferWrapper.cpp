@@ -22,8 +22,6 @@ GraphicBufferWrapper::GraphicBufferWrapper() {
 		m_private = true;
 		m_privateGraphicBuffer = new GraphicBuffer();
 	}
-
-	m_stride = 0;
 }
 
 GraphicBufferWrapper::~GraphicBufferWrapper() {
@@ -53,6 +51,7 @@ bool GraphicBufferWrapper::allocate(const AHardwareBuffer_Desc *desc) {
 	}
 }
 
+
 int GraphicBufferWrapper::lock(uint64_t usage, void **out_virtual_address) {
 
 	int returnValue = 0;
@@ -64,6 +63,7 @@ int GraphicBufferWrapper::lock(uint64_t usage, void **out_virtual_address) {
 
 	return returnValue;
 }
+
 
 void GraphicBufferWrapper::release() {
 	if (!m_private) {
@@ -81,6 +81,7 @@ void GraphicBufferWrapper::unlock() {
 
 }
 
+
 EGLClientBuffer GraphicBufferWrapper::getClientBuffer() {
 	EGLClientBuffer clientBuffer = nullptr;
 	if (m_private) {
@@ -92,15 +93,6 @@ EGLClientBuffer GraphicBufferWrapper::getClientBuffer() {
 	return clientBuffer;
 }
 
-unsigned GraphicBufferWrapper::getStride() const {
-	if (m_private) {
-		return m_privateGraphicBuffer->getStride();
-	} else {
-		AHardwareBuffer_Desc bufferInfo;
-		AndroidHardwareBufferCompat::GetInstance().Describe(m_publicGraphicBuffer, &bufferInfo);
-		return bufferInfo.stride;
-	}
-}
 
 int GraphicBufferWrapper::getApiLevel()
 {

@@ -4,8 +4,7 @@
 #include "N64.h"
 #include <cstddef>
 
-// Defined in mupen64plus-core main.c
-extern size_t rdram_size;
+extern uint32_t rdram_size;
 
 extern "C" {
 

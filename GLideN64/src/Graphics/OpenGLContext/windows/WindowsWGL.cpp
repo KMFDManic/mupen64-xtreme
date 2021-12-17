@@ -84,11 +84,7 @@ bool WindowsWGL::start()
 			{
 				WGL_CONTEXT_MAJOR_VERSION_ARB, majorVersion,
 				WGL_CONTEXT_MINOR_VERSION_ARB, minorVersion,
-#ifdef FORCE_UNBUFFERED_DRAWER
-				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-#else
 				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-#endif
 				0        //End
 			};
 
@@ -131,3 +127,4 @@ void WindowsWGL::swapBuffers()
 	else
 		SwapBuffers(hDC);
 }
+

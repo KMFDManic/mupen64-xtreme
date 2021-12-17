@@ -42,12 +42,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
 #include <libchdr/chd.h>
 #include <libchdr/minmax.h>
 #include <libchdr/cdrom.h>
 #include <libchdr/lzma.h>
 #include <libchdr/huffman.h>
+#include <zlib.h>
 
 #include <retro_inline.h>
 #include <streams/file_stream.h>
@@ -66,16 +66,11 @@
  *-------------------------------------------------
  */
 
-/* Huge alignment values for possible SIMD optimization by compiler (NEON, SSE, AVX) */
-#define LZMA_MIN_ALIGNMENT_BITS 512
-#define LZMA_MIN_ALIGNMENT_BYTES (LZMA_MIN_ALIGNMENT_BITS / 8)
-
 static void *lzma_fast_alloc(void *p, size_t size)
 {
 	int scan;
-	uint32_t *addr        = NULL;
+    uint32_t *addr        = NULL;
 	lzma_allocator *codec = (lzma_allocator *)(p);
-	uintptr_t vaddr = 0;
 
 	/* compute the size, rounding to the nearest 1k */
 	size = (size + 0x3ff) & ~0x3ff;
@@ -88,36 +83,27 @@ static void *lzma_fast_alloc(void *p, size_t size)
 		{
 			/* set the low bit of the size so we don't match next time */
 			*ptr |= 1;
-
-			/* return aligned address of the block */
-			return codec->allocptr2[scan];
+			return ptr + 1;
 		}
 	}
 
 	/* alloc a new one and put it into the list */
-	addr = (uint32_t *)malloc(size + sizeof(uint32_t) + LZMA_MIN_ALIGNMENT_BYTES);
-	if (addr==NULL)
+	addr = (uint32_t *)malloc(sizeof(uint32_t) * (size + sizeof(uint32_t)));
+	if (!addr)
 		return NULL;
+
 	for (scan = 0; scan < MAX_LZMA_ALLOCS; scan++)
 	{
 		if (codec->allocptr[scan] == NULL)
 		{
-			/* store block address */
 			codec->allocptr[scan] = addr;
-
-			/* compute aligned address, store it */
-			vaddr = (uintptr_t)addr;
-			vaddr = (vaddr + sizeof(uint32_t) + (LZMA_MIN_ALIGNMENT_BYTES-1)) & (~(LZMA_MIN_ALIGNMENT_BYTES-1));
-			codec->allocptr2[scan] = (uint32_t*)vaddr;
 			break;
 		}
 	}
 
 	/* set the low bit of the size so we don't match next time */
-	*addr = size | 1;
-
-	/* return aligned address */
-	return (void*)vaddr;
+	*addr = (uint32_t)(size | 1);
+	return addr + 1;
 }
 
 /*-------------------------------------------------
@@ -128,22 +114,21 @@ static void *lzma_fast_alloc(void *p, size_t size)
 static void lzma_fast_free(void *p, void *address)
 {
 	int scan;
-	uint32_t *ptr = NULL;
-	lzma_allocator *codec = NULL;
-
+   uint32_t *ptr;
+   lzma_allocator *codec;
 	if (address == NULL)
 		return;
 
 	codec = (lzma_allocator *)(p);
 
 	/* find the hunk */
-	ptr = (uint32_t *)address;
+	ptr = (uint32_t *)(address) - 1;
 	for (scan = 0; scan < MAX_LZMA_ALLOCS; scan++)
 	{
-		if (ptr == codec->allocptr2[scan])
+		if (ptr == codec->allocptr[scan])
 		{
 			/* clear the low bit of the size to allow matches */
-			*codec->allocptr[scan] &= ~1;
+			*ptr &= ~1;
 			return;
 		}
 	}

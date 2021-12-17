@@ -166,7 +166,7 @@ struct interrupt_handler
     void (*callback)(void*);
 };
 
-enum { CP0_INTERRUPT_HANDLERS_COUNT = 13 };
+enum { CP0_INTERRUPT_HANDLERS_COUNT = 12 };
 
 enum {
     INTR_UNSAFE_R4300 = 0x01,
@@ -185,10 +185,9 @@ struct cp0
     unsigned int interrupt_unsafe_state;
 
     struct interrupt_queue q;
-    unsigned int next_interrupt;
-
 #ifndef NEW_DYNAREC
 	/* New dynarec uses a different memory layout */
+    unsigned int next_interrupt;
     int cycle_count;
 #endif
 

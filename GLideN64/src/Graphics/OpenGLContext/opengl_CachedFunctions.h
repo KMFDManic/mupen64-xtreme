@@ -170,13 +170,6 @@ namespace opengl {
 		void setBlending(graphics::Parameter _sfactor, graphics::Parameter _dfactor);
 	};
 
-	class CachedBlendingSeparate : public Cached4 //<graphics::Parameter, graphics::Parameter, graphics::Parameter, graphics::Parameter>
-	{
-	public:
-		void setBlendingSeparate(graphics::Parameter _sfactorcolor, graphics::Parameter _dfactorcolor, graphics::Parameter _sfactoralpha, graphics::Parameter _dfactoralpha);
-	};
-
-
 	class CachedBlendColor : public Cached4
 	{
 	public:
@@ -191,7 +184,6 @@ namespace opengl {
 
 	class CachedVertexAttribArray {
 	public:
-		CachedVertexAttribArray() = default;
 		void enableVertexAttribArray(u32 _index, bool _enable);
 		void reset();
 
@@ -254,8 +246,6 @@ namespace opengl {
 		CachedScissor * getCachedScissor();
 
 		CachedBlending * getCachedBlending();
-		
-		CachedBlendingSeparate * getCachedBlendingSeparate();
 
 		CachedBlendColor * getCachedBlendColor();
 
@@ -284,7 +274,6 @@ namespace opengl {
 		CachedViewport m_viewport;
 		CachedScissor m_scissor;
 		CachedBlending m_blending;
-		CachedBlendingSeparate m_blendingseparate;
 		CachedBlendColor m_blendColor;
 		CachedClearColor m_clearColor;
 		CachedVertexAttribArray m_attribArray;

@@ -23,7 +23,6 @@
 #include "video_interface.hpp"
 #include "rdp_renderer.hpp"
 #include "luts.hpp"
-#include <cmath>
 
 #ifndef PARALLEL_RDP_SHADER_DIR
 #include "shaders/slangmosh.hpp"
@@ -566,14 +565,14 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 	bool fetch_bug = need_fetch_bug_emulation(regs, scaling_factor);
 	bool serrate = (regs.status & VI_CONTROL_SERRATE_BIT) != 0 && !options.upscale_deinterlacing;
 
+	unsigned crop_pixels_x = options.crop_overscan_pixels * scaling_factor;
+	unsigned crop_pixels_y = crop_pixels_x * (serrate ? 2 : 1);
+
 	Vulkan::ImageCreateInfo rt_info = Vulkan::ImageCreateInfo::render_target(
 			VI_SCANOUT_WIDTH * scaling_factor,
 			((regs.is_pal ? VI_V_RES_PAL: VI_V_RES_NTSC) >> int(!serrate)) * scaling_factor,
 			VK_FORMAT_R8G8B8A8_UNORM);
 
-	// Rescale crop pixels to preserve aspect ratio.
-	auto crop_pixels_y = options.crop_overscan_pixels * scaling_factor * (serrate ? 2 : 1);
-	auto crop_pixels_x = unsigned(std::round(float(crop_pixels_y) * (float(rt_info.width) / float(rt_info.height))));
 	rt_info.width -= 2 * crop_pixels_x;
 	rt_info.height -= 2 * crop_pixels_y;
 
@@ -668,9 +667,11 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 
 	cmd.push_constants(&push, 0, sizeof(push));
 
-	const auto shift_rect = [](VkRect2D &rect, int x, int y) {
-		rect.offset.x += x;
-		rect.offset.y += y;
+	if (!degenerate && regs.h_res > int(crop_pixels_x) && regs.v_res > int(crop_pixels_y))
+	{
+		VkRect2D rect = {{ regs.h_start, regs.v_start }, { uint32_t(regs.h_res), uint32_t(regs.v_res) }};
+		rect.offset.x -= crop_pixels_x;
+		rect.offset.y -= crop_pixels_y;
 
 		if (rect.offset.x < 0)
 		{
@@ -683,16 +684,9 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 			rect.extent.height += rect.offset.y;
 			rect.offset.y = 0;
 		}
-	};
-
-	if (!degenerate && regs.h_res > int(crop_pixels_x) && regs.v_res > int(crop_pixels_y))
-	{
-		VkRect2D rect = {{ regs.h_start, regs.v_start }, { uint32_t(regs.h_res), uint32_t(regs.v_res) }};
-		shift_rect(rect, -int(crop_pixels_x), -int(crop_pixels_y));
 
 		// Check for signed overflow without relying on -fwrapv.
-		if (((rect.extent.width | rect.extent.height) & 0x80000000u) == 0u &&
-		    rect.extent.width > 0 && rect.extent.height > 0)
+		if (((rect.extent.width | rect.extent.height) & 0x80000000u) == 0u)
 		{
 			cmd.set_texture(0, 0, divot_image.get_view());
 			cmd.set_scissor(rect);
@@ -723,13 +717,8 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 		{
 			if (h_res_field > 0)
 			{
-				VkRect2D rect = {{ h_start_field, 0 }, { uint32_t(h_res_field), prev_scanout_image->get_height() }};
-				shift_rect(rect, -int(crop_pixels_x), -int(crop_pixels_y));
-				if (rect.extent.width > 0 && rect.extent.height > 0)
-				{
-					cmd.set_scissor(rect);
-					cmd.draw(3);
-				}
+				cmd.set_scissor({{ h_start_field, 0 }, { uint32_t(h_res_field), prev_scanout_image->get_height() }});
+				cmd.draw(3);
 			}
 		}
 		else
@@ -737,38 +726,23 @@ Vulkan::ImageHandle VideoInterface::scale_stage(Vulkan::CommandBuffer &cmd, Vulk
 			// Top part.
 			if (h_res_field > 0 && regs.v_start > 0)
 			{
-				VkRect2D rect = {{ h_start_field, 0 }, { uint32_t(h_res_field), uint32_t(regs.v_start) }};
-				shift_rect(rect, -int(crop_pixels_x), -int(crop_pixels_y));
-				if (rect.extent.width > 0 && rect.extent.height > 0)
-				{
-					cmd.set_scissor(rect);
-					cmd.draw(3);
-				}
+				cmd.set_scissor({{ h_start_field, 0 }, { uint32_t(h_res_field), uint32_t(regs.v_start) }});
+				cmd.draw(3);
 			}
 
 			// Middle part, don't overwrite the 8 pixel guard band.
 			if (regs.h_res > 0 && regs.v_res > 0)
 			{
-				VkRect2D rect = {{ regs.h_start, regs.v_start }, { uint32_t(regs.h_res), uint32_t(regs.v_res) }};
-				shift_rect(rect, -int(crop_pixels_x), -int(crop_pixels_y));
-				if (rect.extent.width > 0 && rect.extent.height > 0)
-				{
-					cmd.set_scissor(rect);
-					cmd.draw(3);
-				}
+				cmd.set_scissor({{ regs.h_start, regs.v_start }, { uint32_t(regs.h_res), uint32_t(regs.v_res) }});
+				cmd.draw(3);
 			}
 
 			// Bottom part.
 			if (h_res_field > 0 && prev_scanout_image->get_height() > uint32_t(regs.v_start + regs.v_res))
 			{
-				VkRect2D rect = {{ h_start_field, regs.v_start + regs.v_res },
-				                 { uint32_t(h_res_field), prev_scanout_image->get_height() - uint32_t(regs.v_start + regs.v_res) }};
-				shift_rect(rect, -int(crop_pixels_x), -int(crop_pixels_y));
-				if (rect.extent.width > 0 && rect.extent.height > 0)
-				{
-					cmd.set_scissor(rect);
-					cmd.draw(3);
-				}
+				cmd.set_scissor({{ h_start_field, regs.v_start + regs.v_res },
+				                 { uint32_t(h_res_field), prev_scanout_image->get_height() - uint32_t(regs.v_start + regs.v_res) }});
+				cmd.draw(3);
 			}
 		}
 	}

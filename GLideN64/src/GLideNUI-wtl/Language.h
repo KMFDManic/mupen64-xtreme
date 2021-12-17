@@ -1,7 +1,6 @@
 #pragma once
 #include <list>
-#include <map>
-#include "util/StdString.h"
+#include <string>
 
 enum languageStringID
 {
@@ -118,8 +117,6 @@ enum languageStringID
 	EMULATION_BACKGROUND_TOOLTIP = 3030,
 	EMULATION_ONE_PIECE = 3031,
 	EMULATION_STRIPPED = 3032,
-	EMULATION_PIXEL_COVERAGE = 3033,
-	EMULATION_PIXEL_COVERAGE_TOOLTIP = 3034,
 
 	/*********************************************************************************
 	* Frame Buffer Tab															   *
@@ -192,7 +189,9 @@ enum languageStringID
 	TEXTURE_USE_FULL_TRANSPARENCIES_TOOLTIP = 5025,
 	TEXTURE_ALTERNATIVE_CRC = 5026,
 	TEXTURE_ALTERNATIVE_CRC_TOOLTIP = 5027,
-	TEXTURE_USE_FILE_STORAGE_TOOLTIP = 5028,
+	TEXTURE_FILE_STORAGE = 5028,
+	TEXTURE_DUMP_EDIT = 5029,
+	TEXTURE_DUMP_EDIT_TOOLTIP = 5030,
 	TEXTURE_SIZE_OF_MEMORY_CACHE = 5031,
 	TEXTURE_SIZE_OF_MEMORY_CACHE_TOOLTIP = 5032,
 	TEXTURE_SAVE_ENHANCED = 5033,
@@ -201,8 +200,6 @@ enum languageStringID
 	TEXTURE_COMPRESS_CACHE_TOOLTIP = 5036,
 	TEXTURE_CONVERT_16BPP = 5037,
 	TEXTURE_CONVERT_16BPP_TOOLTIP = 5038,
-	TEXTURE_RELOAD = 5039,
-	TEXTURE_RELOAD_TOOLTIP = 5040,
 
 	/*********************************************************************************
 	* On-screen display															  *
@@ -252,10 +249,7 @@ struct LanguageFile
 	std::string LanguageName;
 };
 typedef std::list<LanguageFile> LanguageList;
-typedef std::map<int32_t, stdstr> LANG_STRINGS;
-typedef LANG_STRINGS::value_type LANG_STR;
 
 void LoadCurrentStrings(const char * path, const std::string & lang);
 LanguageList GetLanguageList(const char * path);
-LANG_STRINGS GetDefaultStrings(void);
 std::wstring wGS(languageStringID StringID);

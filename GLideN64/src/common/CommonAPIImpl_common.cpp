@@ -18,7 +18,6 @@
 #include <Log.h>
 #include "Graphics/Context.h"
 #include <DisplayWindow.h>
-#include <osal_keys.h>
 
 PluginAPI & PluginAPI::get()
 {
@@ -193,7 +192,6 @@ void PluginAPI::RomClosed()
 	dwnd().stop();
 	GBI.destroy();
 #endif
-	//osal_keys_quit();
 }
 
 int PluginAPI::RomOpen()
@@ -212,8 +210,6 @@ int PluginAPI::RomOpen()
 	if (!dwnd().start())
 		return 0;
 #endif
-	//osal_keys_init();
-
 	m_bRomOpen = true;
 
 	return 1;

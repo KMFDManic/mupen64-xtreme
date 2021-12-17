@@ -72,7 +72,7 @@
     <ClCompile Include="..\..\src\GLideNUI-wtl\Settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\GLideNUI-wtl\util\util.cpp">
+    <ClCompile Include="..\..\src\GLideNUI-wtl\util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\GLideNUI-wtl\wtl-BitmapPicture.cpp">
@@ -91,9 +91,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\GLideNUI-wtl\Language.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\GLideNUI-wtl\util\StdString.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -152,7 +149,7 @@
     <ClInclude Include="..\..\src\GLideNUI-wtl\Settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\GLideNUI-wtl\util\util.h">
+    <ClInclude Include="..\..\src\GLideNUI-wtl\util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\GLideNUI-wtl\wtl.h">
@@ -248,11 +245,11 @@
     <ClInclude Include="..\..\src\GLideNUI-wtl\wtl-tooltip.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\GLideNUI-wtl\util\StdString.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\src\GLideNUI-wtl\Icon-Original.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
     <Image Include="..\..\src\GLideNUI\Resources\BottomLeft.ico">
       <Filter>Resource Files</Filter>
     </Image>

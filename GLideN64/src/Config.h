@@ -26,7 +26,7 @@ struct Config
 		u32 windowedWidth, windowedHeight;
 		u32 fullscreenWidth, fullscreenHeight, fullscreenRefresh;
 		u32 fxaa;
-		u32 multisampling, maxMultiSampling;
+		u32 multisampling;
 		u32 verticalSync;
 		u32 threadedVideo;
 	} video;
@@ -60,13 +60,12 @@ struct Config
 		u32 rdramImageDitheringMode;
 		u32 enableLOD;
 		u32 enableHWLighting;
-		u32 enableCoverage;
-		u32 enableClipping;
 		u32 enableCustomSettings;
 		u32 enableShadersStorage;
 		u32 enableLegacyBlending;
 		u32 enableHybridFilter;
 		u32 enableFragmentDepthWrite;
+		u32 enableBlitScreenWorkaround;
 		u32 hacks;
 #if defined(OS_ANDROID) || defined(OS_IOS)
 		u32 forcePolygonOffset;
@@ -90,7 +89,6 @@ struct Config
 		u32 correctTexrectCoords;
 		u32 enableNativeResTexrects;
 		u32 bgMode;
-		u32 enableTexCoordBounds;
 	} graphics2D;
 
 	enum Aspect {
@@ -169,6 +167,7 @@ struct Config
 		u32 txHiresEnable;				// Use high-resolution texture packs
 		u32 txHiresFullAlphaChannel;	// Use alpha channel fully
 		u32 txHresAltCRC;				// Use alternative method of paletted textures CRC calculation
+		u32 txDump;						// Dump textures
 
 		u32 txForce16bpp;				// Force use 16bit color textures
 		u32 txCacheCompression;			// Zip textures cache
@@ -212,31 +211,8 @@ struct Config
 		u32 percent;
 		u32 internalResolution;
 		u32 renderingResolution;
-		u32 statistics;
 		u32 pos;
 	} onScreenDisplay;
-
-	enum HotKey {
-		hkTexDump = 0,
-		hkHdTexReload,
-		hkHdTexToggle,
-		hkTexCoordBounds,
-		hkNativeResTexrects,
-		hkVsync,
-		hkFBEmulation,
-		hkN64DepthCompare,
-		hkOsdVis,
-		hkOsdFps,
-		hkOsdPercent,
-		hkOsdInternalResolution,
-		hkOsdRenderingResolution,
-		hkForceGammaCorrection,
-		hkTotal
-	};
-
-	struct {
-		u8 keys[hkTotal];
-	} hotkeys;
 
 	struct {
 		u32 dumpMode;
@@ -244,7 +220,6 @@ struct Config
 
 	void resetToDefaults();
 	void validate();
-	static const char* hotkeyIniName(u32 _idx);
 };
 
 #define hack_Ogre64					(1<<0)  //Ogre Battle 64 background copy
@@ -252,6 +227,7 @@ struct Config
 #define hack_blurPauseScreen		(1<<2)  //Game copies frame buffer to depth buffer area, CPU blurs it. That image is used as background for pause screen.
 #define hack_clearAloneDepthBuffer	(1<<3)  //Force clear depth buffer if there is no frame buffer for it. Multiplayer in GE and PD.
 #define hack_StarCraftBackgrounds	(1<<4)  //StarCraft special check for frame buffer usage.
+#define hack_texrect_shade_alpha	(1<<5)  //Set vertex alpha to 1 when texrect alpha combiner uses shade. Pokemon Stadium 2
 #define hack_subscreen				(1<<6)  //Fix subscreen delay in Zelda OOT and Doubutsu no Mori
 #define hack_blastCorps				(1<<7)  //Blast Corps black polygons
 #define hack_rectDepthBufferCopyPD	(1<<8)  //Copy depth buffer only when game need it. Optimized for PD
@@ -273,7 +249,7 @@ struct Config
 extern Config config;
 
 extern "C" void Config_LoadConfig();
-#if defined(M64P_GLIDENUI) || !defined(MUPENPLUSAPI)
+#ifndef MUPENPLUSAPI
 void Config_DoConfig(/*HWND hParent*/);
 #endif
 

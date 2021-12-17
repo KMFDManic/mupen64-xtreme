@@ -1,4 +1,3 @@
-#include <iomanip> // for setprecision
 #include <assert.h>
 #include <Log.h>
 #include <Config.h>
@@ -8,7 +7,6 @@
 #include "glsl_CombinerProgramImpl.h"
 #include "glsl_CombinerProgramBuilder.h"
 #include "glsl_CombinerProgramUniformFactory.h"
-#include "GraphicsDrawer.h"
 
 using namespace glsl;
 
@@ -97,7 +95,7 @@ const char *AlphaInput[] = {
 };
 
 inline
-u32 correctFirstStageParam(u32 _param)
+int correctFirstStageParam(int _param)
 {
 	switch (_param) {
 	case G_GCI_TEXEL1:
@@ -111,7 +109,7 @@ u32 correctFirstStageParam(u32 _param)
 static
 void _correctFirstStageParams(CombinerStage & _stage)
 {
-	for (u32 i = 0; i < _stage.numOps; ++i) {
+	for (int i = 0; i < _stage.numOps; ++i) {
 		_stage.op[i].param1 = correctFirstStageParam(_stage.op[i].param1);
 		_stage.op[i].param2 = correctFirstStageParam(_stage.op[i].param2);
 		_stage.op[i].param3 = correctFirstStageParam(_stage.op[i].param3);
@@ -119,7 +117,7 @@ void _correctFirstStageParams(CombinerStage & _stage)
 }
 
 inline
-u32 correctFirstStageParam2Cyc(u32 _param)
+int correctFirstStageParam2Cyc(int _param)
 {
 	switch (_param) {
 	case G_GCI_COMBINED:
@@ -131,7 +129,7 @@ u32 correctFirstStageParam2Cyc(u32 _param)
 static
 void _correctFirstStageParams2Cyc(CombinerStage & _stage)
 {
-	for (u32 i = 0; i < _stage.numOps; ++i) {
+	for (int i = 0; i < _stage.numOps; ++i) {
 		_stage.op[i].param1 = correctFirstStageParam2Cyc(_stage.op[i].param1);
 		_stage.op[i].param2 = correctFirstStageParam2Cyc(_stage.op[i].param2);
 		_stage.op[i].param3 = correctFirstStageParam2Cyc(_stage.op[i].param3);
@@ -139,7 +137,7 @@ void _correctFirstStageParams2Cyc(CombinerStage & _stage)
 }
 
 inline
-u32 correctSecondStageParam(u32 _param)
+int correctSecondStageParam(int _param)
 {
 	switch (_param) {
 	case G_GCI_TEXEL0:
@@ -156,7 +154,7 @@ u32 correctSecondStageParam(u32 _param)
 
 static
 void _correctSecondStageParams(CombinerStage & _stage) {
-	for (u32 i = 0; i < _stage.numOps; ++i) {
+	for (int i = 0; i < _stage.numOps; ++i) {
 		_stage.op[i].param1 = correctSecondStageParam(_stage.op[i].param1);
 		_stage.op[i].param2 = correctSecondStageParam(_stage.op[i].param2);
 		_stage.op[i].param3 = correctSecondStageParam(_stage.op[i].param3);
@@ -167,7 +165,7 @@ static
 CombinerInputs _compileCombiner(const CombinerStage & _stage, const char** _Input, std::stringstream & _strShader) {
 	bool bBracketOpen = false;
 	CombinerInputs inputs;
-	for (u32 i = 0; i < _stage.numOps; ++i) {
+	for (int i = 0; i < _stage.numOps; ++i) {
 		switch (_stage.op[i].op) {
 		case LOAD:
 			//			sprintf(buf, "(%s ", _Input[_stage.op[i].param1]);
@@ -246,9 +244,6 @@ public:
 				"#else						\n"
 				"# define IN attribute		\n"
 				"# define OUT varying		\n"
-	 			"#ifndef GL_FRAGMENT_PRECISION_HIGH \n"
-	 			"# define highp mediump		\n"
-	 			"#endif						\n"
 				"#endif // __VERSION		\n"
 				;
 		}
@@ -258,8 +253,7 @@ public:
 			ss << "# define IN in" << std::endl << "# define OUT out" << std::endl;
 			if (_glinfo.noPerspective) {
 				ss << "#extension GL_NV_shader_noperspective_interpolation : enable" << std::endl
-					<< "noperspective OUT highp float vZCoord;" << std::endl
-					<< "uniform lowp int uClampMode;" << std::endl;
+					<< "noperspective OUT highp float vZCoord;" << std::endl << "uniform lowp int uClampMode;" << std::endl;
 			}
 			m_part = ss.str();
 		}
@@ -269,10 +263,7 @@ public:
 			ss << "# define IN in" << std::endl << "# define OUT out" << std::endl;
 			m_part = ss.str();
 		}
-		m_part += "uniform lowp vec2 uVertexOffset; \n";
-		std::stringstream ss;
-		ss << "const lowp float screenSizeDims = " << std::setprecision(1) << std::fixed << SCREEN_SIZE_DIM << ";" << std::endl;
-		m_part += ss.str();
+		m_part += "uniform lowp float uClipRatio; \n";
 	}
 };
 
@@ -287,7 +278,6 @@ public:
 			"IN highp vec2 aTexCoord;							\n"
 			"IN lowp float aNumLights;							\n"
 			"IN highp vec4 aModify;								\n"
-			"IN highp vec2 aBaryCoords;							\n"
 			"													\n"
 			"uniform int uTexturePersp;							\n"
 			"uniform lowp int uTextureFilterMode;		\n"
@@ -301,17 +291,12 @@ public:
 			"uniform mediump vec2 uCacheScale[2];				\n"
 			"uniform mediump vec2 uCacheOffset[2];				\n"
 			"uniform mediump vec2 uCacheShiftScale[2];			\n"
-			"uniform mediump vec2 uVTrans;						\n"
-			"uniform mediump vec2 uVScale;						\n"
-			"uniform mediump vec2 uAdjustTrans;					\n"
-			"uniform mediump vec2 uAdjustScale;					\n"
 			"uniform lowp ivec2 uCacheFrameBuffer;				\n"
 			"OUT highp vec2 vTexCoord0;							\n"
 			"OUT highp vec2 vTexCoord1;							\n"
 			"OUT mediump vec2 vLodTexCoord;						\n"
 			"OUT lowp float vNumLights;							\n"
 			"OUT lowp vec4 vShadeColor;							\n"
-			"OUT highp vec4 vBaryCoords;						\n"
 		;
 		if (!_glinfo.isGLESX || _glinfo.noPerspective)
 			m_part += "noperspective OUT lowp vec4 vShadeColorNoperspective;\n";
@@ -323,8 +308,8 @@ public:
 			"    vec2 texCoordOut = texCoord*uCacheShiftScale[idx];			\n"
 			"    texCoordOut -= uTexOffset[idx];							\n"
 			"    texCoordOut += uCacheOffset[idx];							\n"
-			"    if (uTextureFilterMode != 0 && uCacheFrameBuffer[idx] != 0) \n"	/* Workaround for framebuffer textures. */
-			"      texCoordOut -= vec2(0.0,1.0);							\n"		/* They contain garbage at the bottom.  */
+			"    if (uTextureFilterMode != 0 && uCacheFrameBuffer[idx] != 0) \n"
+			"      texCoordOut -= vec2(0.5);								\n"
 			"    return texCoordOut * uCacheScale[idx];						\n"
 			"}																\n"
 			"																\n"
@@ -332,6 +317,7 @@ public:
 			"{																\n"
 			"  gl_Position = aPosition;										\n"
 			"  vShadeColor = aColor;										\n"
+			"  vShadeColorNoperspective = aColor;							\n"
 			"  vec2 texCoord = aTexCoord;									\n"
 			"  texCoord *= uTexScale;										\n"
 			"  if (uTexturePersp == 0 && aModify[2] == 0.0) texCoord *= 0.5;\n"
@@ -339,18 +325,17 @@ public:
 			"  vTexCoord1 = calcTexCoord(texCoord, 1);						\n"
 			"  vLodTexCoord = texCoord;										\n"
 			"  vNumLights = aNumLights;										\n"
-			"  if ((aModify[0]) != 0.0) {									\n"
-			"    gl_Position.xy *= gl_Position.w;							\n"
+			"  if (aModify != vec4(0.0)) {									\n"
+			"    if ((aModify[0]) != 0.0) {									\n"
+			"      gl_Position.xy = gl_Position.xy * uScreenCoordsScale + vec2(-1.0, 1.0);	\n"
+			"      gl_Position.xy *= gl_Position.w;							\n"
+			"    }															\n"
+			"    if ((aModify[1]) != 0.0)									\n"
+			"      gl_Position.z *= gl_Position.w;							\n"
+			"    if ((aModify[3]) != 0.0)									\n"
+			"      vNumLights = 0.0;										\n"
 			"  }															\n"
-			"  else {														\n"
-			"    gl_Position.xy = gl_Position.xy * uVScale.xy + uVTrans.xy * gl_Position.ww; \n"
-			"    gl_Position.xy = floor(gl_Position.xy * vec2(4.0)) * vec2(0.25); \n"
-			"    gl_Position.xy = gl_Position.xy * uAdjustScale + gl_Position.ww * uAdjustTrans; \n"
-			"  }															\n"
-			"  if ((aModify[1]) != 0.0)										\n"
-			"    gl_Position.z *= gl_Position.w;							\n"
-			"  if ((aModify[3]) != 0.0)										\n"
-			"    vNumLights = 0.0;											\n"
+			"  gl_Position.y = -gl_Position.y;								\n"
 			"  if (uFogUsage > 0) {											\n"
 			"    lowp float fp;												\n"
 			"    if (aPosition.z < -aPosition.w && aModify[1] == 0.0)		\n"
@@ -363,8 +348,6 @@ public:
 			"    else														\n"
 			"      vShadeColor.rgb = vec3(fp);								\n"
 			"  }															\n"
-			"  vBaryCoords = vec4(aBaryCoords, 1.0 - aBaryCoords.x - aBaryCoords.y, 0.5);	\n"
-			"  vShadeColorNoperspective = vShadeColor;							\n"
 			;
 	}
 };
@@ -379,19 +362,13 @@ public:
 			"IN lowp vec4 aColor;											\n"
 			"IN lowp float aNumLights;										\n"
 			"IN highp vec4 aModify;											\n"
-			"IN highp vec2 aBaryCoords;										\n"
 			"																\n"
 			"uniform lowp int uFogUsage;									\n"
 			"uniform mediump vec2 uFogScale;								\n"
 			"uniform mediump vec2 uScreenCoordsScale;						\n"
-			"uniform mediump vec2 uVTrans;									\n"
-			"uniform mediump vec2 uVScale;									\n"
-			"uniform mediump vec2 uAdjustTrans;								\n"
-			"uniform mediump vec2 uAdjustScale;								\n"
 			"																\n"
 			"OUT lowp float vNumLights;										\n"
 			"OUT lowp vec4 vShadeColor;										\n"
-			"OUT highp vec4 vBaryCoords;									\n"
 		;
 		if (!_glinfo.isGLESX || _glinfo.noPerspective)
 			m_part += "noperspective OUT lowp vec4 vShadeColorNoperspective;\n";
@@ -403,19 +380,19 @@ public:
 			"{																\n"
 			"  gl_Position = aPosition;										\n"
 			"  vShadeColor = aColor;										\n"
+			"  vShadeColorNoperspective = aColor;							\n"
 			"  vNumLights = aNumLights;										\n"
-			"  if ((aModify[0]) != 0.0) {									\n"
-			"    gl_Position.xy *= gl_Position.w;							\n"
+			"  if (aModify != vec4(0.0)) {									\n"
+			"    if ((aModify[0]) != 0.0) {									\n"
+			"      gl_Position.xy = gl_Position.xy * uScreenCoordsScale + vec2(-1.0, 1.0);	\n"
+			"      gl_Position.xy *= gl_Position.w;							\n"
+			"    }															\n"
+			"    if ((aModify[1]) != 0.0) 									\n"
+			"      gl_Position.z *= gl_Position.w;							\n"
+			"    if ((aModify[3]) != 0.0)									\n"
+			"      vNumLights = 0.0;										\n"
 			"  }															\n"
-			"  else {														\n"
-			"    gl_Position.xy = gl_Position.xy * uVScale.xy + uVTrans.xy * gl_Position.ww; \n"
-			"    gl_Position.xy = floor(gl_Position.xy * vec2(4.0)) * vec2(0.25); \n"
-			"    gl_Position.xy = gl_Position.xy * uAdjustScale + gl_Position.ww * uAdjustTrans; \n"
-			"  }															\n"
-			"  if ((aModify[1]) != 0.0) 									\n"
-			"    gl_Position.z *= gl_Position.w;							\n"
-			"  if ((aModify[3]) != 0.0)										\n"
-			"    vNumLights = 0.0;											\n"
+			"  gl_Position.y = -gl_Position.y;								\n"
 			"  if (uFogUsage > 0) {											\n"
 			"    lowp float fp;												\n"
 			"    if (aPosition.z < -aPosition.w && aModify[1] == 0.0)		\n"
@@ -428,8 +405,6 @@ public:
 			"    else														\n"
 			"      vShadeColor.rgb = vec3(fp);								\n"
 			"  }															\n"
-			"  vBaryCoords = vec4(aBaryCoords, 1.0 - aBaryCoords.x - aBaryCoords.y, 0.5); \n"
-			"  vShadeColorNoperspective = vShadeColor;							\n"
 			;
 	}
 };
@@ -443,13 +418,11 @@ public:
 			"IN highp vec4 aRectPosition;						\n"
 			"IN highp vec2 aTexCoord0;							\n"
 			"IN highp vec2 aTexCoord1;							\n"
-			"IN highp vec2 aBaryCoords;							\n"
 			"													\n"
 			"OUT highp vec2 vTexCoord0;							\n"
 			"OUT highp vec2 vTexCoord1;							\n"
 			"OUT lowp vec4 vShadeColor;							\n"
-			"OUT highp vec4 vBaryCoords;"
-			;
+		;
 		if (!_glinfo.isGLESX || _glinfo.noPerspective)
 			m_part += "noperspective OUT lowp vec4 vShadeColorNoperspective;\n";
 		else
@@ -463,7 +436,6 @@ public:
 			"  vShadeColorNoperspective = uRectColor;			\n"
 			"  vTexCoord0 = aTexCoord0;							\n"
 			"  vTexCoord1 = aTexCoord1;							\n"
-			"  vBaryCoords = vec4(aBaryCoords, vec2(1.0) - aBaryCoords);	\n"
 			;
 	}
 };
@@ -475,10 +447,8 @@ public:
 	{
 		m_part =
 			"IN highp vec4 aRectPosition;						\n"
-			"IN highp vec2 aBaryCoords;							\n"
 			"													\n"
 			"OUT lowp vec4 vShadeColor;							\n"
-			"OUT highp vec4 vBaryCoords; \n"
 			;
 		if (!_glinfo.isGLESX || _glinfo.noPerspective)
 			m_part += "noperspective OUT lowp vec4 vShadeColorNoperspective;\n";
@@ -491,7 +461,6 @@ public:
 			"  gl_Position = aRectPosition;						\n"
 			"  vShadeColor = uRectColor;						\n"
 			"  vShadeColorNoperspective = uRectColor;			\n"
-			"  vBaryCoords = vec4(aBaryCoords, vec2(1.0) - aBaryCoords);\n"
 			;
 	}
 };
@@ -506,21 +475,14 @@ public:
 				"  gl_ClipDistance[0] = gl_Position.w - gl_Position.z;	\n"
 				;
 		} else if (config.generalEmulation.enableFragmentDepthWrite != 0 && _glinfo.noPerspective) {
-			m_part =
-				"  vZCoord = gl_Position.z / gl_Position.w;	\n"
-				"  if (uClampMode > 0)	\n"
-				"    gl_Position.z = 0.0;	\n"
-				;
-		} else if (config.generalEmulation.enableClipping != 0) {
-			// Move the near plane towards the camera.
-			// It helps to avoid issues with near-plane clipping in games, which do not use it.
-			// Z must be scaled back in fragment shader.
-			m_part = "  gl_Position.z /= 8.0;	\n";
+				m_part =
+					"  vZCoord = gl_Position.z / gl_Position.w;	\n"
+					"  if (uClampMode > 0)	\n"
+					"    gl_Position.z = 0.0;	\n"
+					;
 		}
 		m_part +=
-			" gl_Position.xy += uVertexOffset * vec2(gl_Position.w);		\n"
-			" gl_Position.xy -= vec2(0.5*screenSizeDims) * gl_Position.ww;	\n"
-			" gl_Position.xy /= vec2(0.5*screenSizeDims);					\n"
+			" gl_Position.zw *= vec2(uClipRatio);	 \n"
 			"} \n"
 			;
 	}
@@ -545,9 +507,6 @@ public:
 				"#else							\n"
 				"# define IN varying			\n"
 				"# define OUT					\n"
-				"#ifndef GL_FRAGMENT_PRECISION_HIGH \n"
-				"# define highp mediump		\n"
-				"#endif						\n"
 				"#endif // __VERSION __			\n"
 			;
 		} else if (_glinfo.isGLESX) {
@@ -555,18 +514,12 @@ public:
 			ss << "#version " << Utils::to_string(_glinfo.majorVersion) << Utils::to_string(_glinfo.minorVersion) << "0 es " << std::endl;
 			if (_glinfo.noPerspective)
 				ss << "#extension GL_NV_shader_noperspective_interpolation : enable" << std::endl;
-			if (_glinfo.dual_source_blending)
-				ss << "#extension GL_EXT_blend_func_extended : enable" << std::endl;
-			if (_glinfo.ext_fetch)
-				ss << "#extension GL_EXT_shader_framebuffer_fetch : enable" << std::endl;
-			if (_glinfo.ext_fetch_arm)
-				ss << "#extension GL_ARM_shader_framebuffer_fetch : enable" << std::endl;
-
 			if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast) {
 				if (_glinfo.imageTextures && _glinfo.fragment_interlockNV) {
 					ss << "#extension GL_NV_fragment_shader_interlock : enable" << std::endl
 						<< "layout(pixel_interlock_ordered) in;" << std::endl;
-				}
+				} else if (_glinfo.ext_fetch)
+					ss << "#extension GL_EXT_shader_framebuffer_fetch : enable" << std::endl;
 			}
 			ss << "# define IN in" << std::endl
 				<< "# define OUT out" << std::endl
@@ -576,9 +529,7 @@ public:
 			std::stringstream ss;
 			ss << "#version " << Utils::to_string(_glinfo.majorVersion) << Utils::to_string(_glinfo.minorVersion) << "0 core " << std::endl;
 			if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
-				if (_glinfo.n64DepthWithFbFetch)
-					ss << "#extension GL_EXT_shader_framebuffer_fetch : enable" << std::endl;
-				else if (_glinfo.imageTextures) {
+				if (_glinfo.imageTextures) {
 					if (_glinfo.majorVersion * 10 + _glinfo.minorVersion < 42) {
 						ss << "#extension GL_ARB_shader_image_load_store : enable" << std::endl
 							<< "#extension GL_ARB_shading_language_420pack : enable" << std::endl;
@@ -591,7 +542,8 @@ public:
 							<< "layout(pixel_interlock_ordered) in;" << std::endl;
 					else if (_glinfo.fragment_ordering)
 						ss << "#extension GL_INTEL_fragment_shader_ordering : enable" << std::endl;
-				}
+				} else if (_glinfo.ext_fetch)
+					ss << "#extension GL_EXT_shader_framebuffer_fetch : enable" << std::endl;
 			}
 			ss << "# define IN in" << std::endl
 				<< "# define OUT out" << std::endl
@@ -600,7 +552,7 @@ public:
 		}
 		m_part +=
 			// Return the vector of the standard basis of R^4 with a 1 at position <pos> and 0 otherwise.
-			"  #define STVEC(pos) (step(float(pos), vec4(0.5,1.5,2.5,3.5)) - step(float(pos), vec4(-0.5,0.5,1.5,2.5))) \n";
+			"  #define STVEC(pos) step(float(pos) - 0.5, vec4(0.0,1.0,2.0,3.0)) - step(float(pos) + 0.5, vec4(0.0,1.0,2.0,3.0)) \n";
 
 	}
 };
@@ -608,32 +560,21 @@ public:
 class ShaderBlender1 : public ShaderPart
 {
 public:
-	ShaderBlender1(const opengl::GLInfo & _glinfo)
+	ShaderBlender1()
 	{
 #if 1
-		m_part =
-			"  srcColor1 = vec4(0.0);									\n"
-			"  dstFactor1 = 0.0;										\n"
-			"  muxPM[0] = clampedColor;									\n"
-			"  muxA[0] = clampedColor.a;								\n"
-			"  muxa = MUXA(uBlendMux1[1]);								\n"
-			"  muxB[0] = 1.0 - muxa;									\n"
-			"  muxb = MUXB(uBlendMux1[3]);								\n"
-			"  muxp = MUXPM(uBlendMux1[0]);								\n"
-			"  muxm = MUXPM(uBlendMux1[2]);								\n"
-			"  muxaf = MUXF(uBlendMux1[0]);								\n"
-			"  muxbf = MUXF(uBlendMux1[2]);								\n"
-			"  if (uForceBlendCycle1 != 0) {							\n"
-			"    srcColor1 = muxp * muxa + muxm * muxb;					\n"
-			"    dstFactor1 = muxaf * muxa + muxbf * muxb;				\n"
-			"    srcColor1 = clamp(srcColor1, 0.0, 1.0);				\n"
-			"  } else {													\n"
-			"    srcColor1 = muxp;										\n"
-			"    dstFactor1 = muxaf;									\n"
-			"  }														\n"
-			"  fragColor = srcColor1;	\n"
-			"  fragColor1 = vec4(dstFactor1);							\n"
-			;
+			m_part =
+				"  #define MUXA(pos) dot(muxA, STVEC(pos))				\n"
+				"  #define MUXB(pos) dot(muxB, STVEC(pos))				\n"
+				"  #define MUXPM(pos) muxPM*(STVEC(pos))				\n"
+				"  muxPM[0] = clampedColor;								\n"
+				"  if (uForceBlendCycle1 != 0) {						\n"
+				"    muxA[0] = clampedColor.a;							\n"
+				"    muxB[0] = 1.0 - MUXA(uBlendMux1[1]);				\n"
+				"    lowp vec4 blend1 = MUXPM(uBlendMux1[0]) * MUXA(uBlendMux1[1]) + MUXPM(uBlendMux1[2]) * MUXB(uBlendMux1[3]);	\n"
+				"    clampedColor.rgb = clamp(blend1.rgb, 0.0, 1.0);	\n"
+				"  } else clampedColor.rgb = (MUXPM(uBlendMux1[0])).rgb;	\n"
+				;
 #else
 		// Keep old code for reference
 		m_part =
@@ -652,33 +593,19 @@ public:
 class ShaderBlender2 : public ShaderPart
 {
 public:
-	ShaderBlender2(const opengl::GLInfo & _glinfo)
+	ShaderBlender2()
 	{
 #if 1
 		m_part =
-			"  srcColor2 = vec4(0.0);									\n"
-			"  dstFactor2 = 0.0;										\n"
-			"  muxPM[0] = srcColor1;									\n"
-			"  muxa = MUXA(uBlendMux2[1]);								\n"
-			"  muxB[0] = 1.0 - muxa;									\n"
-			"  muxb = MUXB(uBlendMux2[3]);								\n"
-			"  muxp = MUXPM(uBlendMux2[0]);								\n"
-			"  muxm = MUXPM(uBlendMux2[2]);								\n"
-			"  muxF[0] = dstFactor1;									\n"
-			"  muxaf = MUXF(uBlendMux2[0]);								\n"
-			"  muxbf = MUXF(uBlendMux2[2]);								\n"
-			"  if (uForceBlendCycle2 != 0) {							\n"
-			"    srcColor2 = muxp * muxa + muxm * muxb;					\n"
-			"    dstFactor2 = muxaf * muxa + muxbf * muxb;				\n"
-			"    srcColor2 = clamp(srcColor2, 0.0, 1.0);				\n"
-			"  } else {													\n"
-			"    srcColor2 = muxp;										\n"
-			"    dstFactor2 = muxaf;									\n"
-			"  }														\n"
-			"  fragColor = srcColor2;	\n"
-			"  fragColor1 = vec4(dstFactor2);							\n"
+			"  muxPM[0] = clampedColor;								\n"
+			"  muxPM[1] = vec4(0.0);								\n"
+			"  if (uForceBlendCycle2 != 0) {						\n"
+			"    muxA[0] = clampedColor.a;							\n"
+			"    muxB[0] = 1.0 - MUXA(uBlendMux2[1]);				\n"
+			"    lowp vec4 blend2 = MUXPM(uBlendMux2[0]) * MUXA(uBlendMux2[1]) + MUXPM(uBlendMux2[2]) * MUXB(uBlendMux2[3]);	\n"
+			"    clampedColor.rgb = clamp(blend2.rgb, 0.0, 1.0);	\n"
+			"  } else clampedColor.rgb = (MUXPM(uBlendMux2[0])).rgb;	\n"
 			;
-
 #else
 		// Keep old code for reference
 		m_part =
@@ -692,30 +619,6 @@ public:
 			"  } else clampedColor.rgb = muxPM[uBlendMux2[0]].rgb;	\n"
 			;
 #endif
-	}
-};
-
-class ShaderBlenderAlpha : public ShaderPart
-{
-public:
-	ShaderBlenderAlpha(const opengl::GLInfo & _glinfo)
-	{
-		if (_glinfo.dual_source_blending || _glinfo.ext_fetch || _glinfo.ext_fetch_arm) {
-			m_part +=
-				"if (uBlendAlphaMode != 2) {							\n"
-				"  lowp vec4 srcAlpha = vec4(cvg, cvg, 1.0, 0.0);		\n"
-				"  lowp vec4 dstFactorAlpha = vec4(1.0, 1.0, 0.0, 1.0);	\n"
-				"  if (uBlendAlphaMode == 0)							\n"
-				"    dstFactorAlpha[0] = 0.0;							\n"
-				"  fragColor1.a = dstFactorAlpha[uCvgDest];				\n"
-				"  fragColor.a = srcAlpha[uCvgDest] + lastFragColor.a * fragColor1.a;\n"
-				"} else fragColor.a = clampedColor.a;					\n";
-		}
-		else {
-			m_part +=
-				"fragColor.a = clampedColor.a;"
-				;
-		}
 	}
 };
 
@@ -863,14 +766,14 @@ public:
 		}
 
 		m_part +=
-			"  lowp mat4 bayer = mat4( 0.0, 0.5, 0.125, 0.625,							\n"
-			"                          0.5, 0.0, 0.625, 0.125,							\n"
-			"                          0.375, 0.875, 0.25, 0.75,						\n"
-			"                          0.875, 0.375, 0.75, 0.25);						\n"
-			"  lowp mat4 mSquare = mat4( 0.0, 0.75, 0.125, 0.875,						\n"
-			"                            0.5, 0.25, 0.625, 0.375, 						\n"
-			"                            0.375, 0.625, 0.25, 0.5,						\n"
-			"                            0.875, 0.125, 0.75, 0.0);						\n"
+			"  lowp mat4 bayer = mat4( 0.0, 0.75, 0.1875, 0.9375,						\n"
+			"                          0.5, 0.25, 0.6875, 0.4375,						\n"
+			"                          0.125, 0.875, 0.0625, 0.8125,					\n"
+			"                          0.625, 0.375, 0.5625, 0.3125);					\n"
+			"  lowp mat4 mSquare = mat4( 0.0, 0.6875, 0.75, 0.4375,						\n"
+			"                            0.875, 0.3125, 0.125, 0.5625, 					\n"
+			"                            0.1875, 0.5, 0.9375, 0.25,						\n"
+			"                            0.8125, 0.375, 0.0625, 0.625);					\n"
 			// Try to keep dithering visible even at higher resolutions
 			"  lowp float divider = 1.0 + step(3.0, uScreenScale.x);					\n"
 			"  mediump ivec2 position = ivec2(mod((gl_FragCoord.xy - 0.5) / divider,4.0));\n"
@@ -963,19 +866,12 @@ public:
 			"uniform lowp vec2 uTexMirrorEn1;		\n"
 			"uniform lowp vec2 uTexClampEn0;		\n"
 			"uniform lowp vec2 uTexClampEn1;		\n"
-			"uniform highp vec2 uTexCoordOffset[2];	\n"
-			"uniform lowp int uUseTexCoordBounds;	\n"
-			"uniform highp vec4 uTexCoordBounds0;	\n"
-			"uniform highp vec4 uTexCoordBounds1;	\n"
 			"uniform lowp int uScreenSpaceTriangle;	\n"
 			"highp vec2 texCoord0;					\n"
 			"highp vec2 texCoord1;					\n"
 			"highp vec2 tcData0[5];					\n"
 			"highp vec2 tcData1[5];					\n"
-			"uniform lowp int uCvgDest;				\n"
-			"uniform lowp int uBlendAlphaMode;		\n"
-			"lowp float cvg;		\n"
-			;
+		;
 
 		if (config.generalEmulation.enableLegacyBlending != 0) {
 			m_part +=
@@ -1026,43 +922,17 @@ public:
 			"IN highp vec2 vTexCoord1;		\n"
 			"IN mediump vec2 vLodTexCoord;	\n"
 			"IN lowp float vNumLights;		\n"
-			"IN highp vec4 vBaryCoords;		\n"
 		;
 
-		if (_glinfo.dual_source_blending) {
+		if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast && _glinfo.ext_fetch) {
 			m_part +=
-				"layout(location = 0, index = 0) OUT lowp vec4 fragColor; 	\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"layout(location = 0, index = 1) OUT lowp vec4 fragColor1;	\n"  // SECONDARY FRAGMENT SHADER OUTPUT
-				"#define LAST_FRAG_COLOR vec4(0.0)							\n"  // DUMMY
-				"#define LAST_FRAG_ALPHA 1.0								\n"  // DUMMY
-				;
-		} else if (_glinfo.ext_fetch) {
-			m_part +=
-				"layout(location = 0) inout lowp vec4 fragColor;		\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"lowp vec4 fragColor1;									\n"  // DUMMY
-				"#define LAST_FRAG_COLOR fragColor						\n"  // CURRENT FRAMEBUFFER COLOR/ALPHA
-				"#define LAST_FRAG_ALPHA fragColor.a					\n"  // CURRENT FRAMEBUFFER ALPHA
-				;
-		} else if (_glinfo.ext_fetch_arm) {
-			m_part +=
-				"OUT lowp vec4 fragColor;								\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"lowp vec4 fragColor1;									\n"  // DUMMY
-				"#define LAST_FRAG_COLOR gl_LastFragColorARM			\n"  // CURRENT FRAMEBUFFER COLOR/ALPHA
-				"#define LAST_FRAG_ALPHA gl_LastFragColorARM.a			\n"  // CURRENT FRAMEBUFFER ALPHA
-				;
+				"layout(location = 0) OUT lowp vec4 fragColor;		\n"
+				"layout(location = 1) inout highp vec4 depthZ;		\n"
+				"layout(location = 2) inout highp vec4 depthDeltaZ;	\n"
+			;
 		} else {
 			m_part +=
-				"OUT lowp vec4 fragColor;								\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"lowp vec4 fragColor1;									\n"  // DUMMY
-				"#define LAST_FRAG_COLOR vec4(0.0)						\n"  // DUMMY
-				"#define LAST_FRAG_ALPHA 1.0							\n"  // DUMMY
-				;
-		}
-
-		if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast && _glinfo.n64DepthWithFbFetch) {
-			m_part +=
-				"layout(location = 1) inout highp vec4 depthZ;	\n"
-				"layout(location = 2) inout highp vec4 depthDeltaZ;	\n"
+				"OUT lowp vec4 fragColor;	\n"
 				;
 		}
 	}
@@ -1094,9 +964,6 @@ public:
 			"uniform highp float uPrimDepth;		\n"
 			"uniform mediump vec2 uScreenScale;		\n"
 			"uniform lowp int uScreenSpaceTriangle;	\n"
-			"uniform lowp int uCvgDest; \n"
-			"uniform lowp int uBlendAlphaMode; \n"
-			"lowp float cvg; \n"
 		;
 
 		if (config.generalEmulation.enableLegacyBlending != 0) {
@@ -1137,43 +1004,17 @@ public:
 		m_part +=
 			"IN lowp vec4 vShadeColor;	\n"
 			"IN lowp float vNumLights;	\n"
-			"IN highp vec4 vBaryCoords; \n"
 		;
 
-		if (_glinfo.dual_source_blending) {
+		if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast && _glinfo.ext_fetch) {
 			m_part +=
-				"layout(location = 0, index = 0) OUT lowp vec4 fragColor; 	\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"layout(location = 0, index = 1) OUT lowp vec4 fragColor1;	\n"  // SECONDARY FRAGMENT SHADER OUTPUT
-				"#define LAST_FRAG_COLOR vec4(0.0)							\n"  // DUMMY
-				"#define LAST_FRAG_ALPHA 1.0								\n"  // DUMMY
-				;
-		} else if (_glinfo.ext_fetch) {
-			m_part +=
-				"layout(location = 0) inout lowp vec4 fragColor;		\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"lowp vec4 fragColor1;									\n"  // DUMMY
-				"#define LAST_FRAG_COLOR fragColor						\n"  // CURRENT FRAMEBUFFER COLOR/ALPHA
-				"#define LAST_FRAG_ALPHA fragColor.a					\n"  // CURRENT FRAMEBUFFER ALPHA
-				;
-		} else if (_glinfo.ext_fetch_arm) {
-			m_part +=
-				"OUT lowp vec4 fragColor;								\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"lowp vec4 fragColor1;									\n"  // DUMMY
-				"#define LAST_FRAG_COLOR gl_LastFragColorARM			\n"  // CURRENT FRAMEBUFFER COLOR/ALPHA
-				"#define LAST_FRAG_ALPHA gl_LastFragColorARM.a			\n"  // CURRENT FRAMEBUFFER ALPHA
-				;
+				"layout(location = 0) OUT lowp vec4 fragColor;		\n"
+				"layout(location = 1) inout highp vec4 depthZ;		\n"
+				"layout(location = 2) inout highp vec4 depthDeltaZ;	\n"
+			;
 		} else {
 			m_part +=
-				"OUT lowp vec4 fragColor;								\n"  // MAIN FRAGMENT SHADER OUTPUT
-				"lowp vec4 fragColor1;									\n"  // DUMMY
-				"#define LAST_FRAG_COLOR vec4(0.0)						\n"  // DUMMY
-				"#define LAST_FRAG_ALPHA 1.0							\n"  // DUMMY
-				;
-		}
-
-		if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast && _glinfo.n64DepthWithFbFetch) {
-			m_part +=
-				"layout(location = 1) inout highp vec4 depthZ;	\n"
-				"layout(location = 2) inout highp vec4 depthDeltaZ;	\n"
+				"OUT lowp vec4 fragColor;	\n"
 				;
 		}
 	}
@@ -1199,16 +1040,15 @@ public:
 			m_part =
 				"highp float writeDepth();\n";
 			;
-		}
-		if (_glinfo.isGLESX &&  _glinfo.noPerspective) {
-			m_part =
-				"noperspective IN highp float vZCoord;	\n"
-				"uniform lowp float uPolygonOffset;	\n"
-				"uniform lowp int uClampMode; \n"
-				+ m_part
+			if (_glinfo.isGLESX &&  _glinfo.noPerspective) {
+				m_part =
+					"noperspective IN highp float vZCoord;	\n"
+					"uniform lowp float uPolygonOffset;	\n"
+					"uniform lowp int uClampMode;	\n"
+					+ m_part
 				;
+			}
 		}
-
 	}
 };
 
@@ -1298,7 +1138,7 @@ public:
 				"bool depth_compare(highp float curZ);	\n"
 				"bool depth_render(highp float Z, highp float curZ);	\n"
 				;
-			if (_glinfo.imageTextures & !_glinfo.n64DepthWithFbFetch) {
+			if (_glinfo.imageTextures) {
 				m_part +=
 					"layout(binding = 2, r32f) highp uniform restrict image2D uDepthImageZ;		\n"
 					"layout(binding = 3, r32f) highp uniform restrict image2D uDepthImageDeltaZ;	\n"
@@ -1402,7 +1242,7 @@ public:
 						"  lowp vec4 c0 = c00 + tcData[4].s * (c10-c00);														\\\n"
 						"  lowp vec4 c1 = c01 + tcData[4].s * (c11-c01);														\\\n"
 						"  name = c0 + tcData[4].t * (c1-c0);																	\\\n"
-						"  if(uEnableAlphaTest == 1)  name.rgb /= name.a;														\\\n"
+						"  if(uEnableAlphaTest == 1)  name.rgb /= name.a;														\\\n" 
 						"}																										\n"
 						;
 				break;
@@ -1536,16 +1376,8 @@ public:
 			"  lowp vec4 vec_color;				\n"
 			"  lowp float alpha1;				\n"
 			"  lowp vec3 color1, input_color;	\n"
-		;
-		if (config.generalEmulation.enableClipping != 0)
-			m_part +=
-			"  lowp vec4 shadeColor = vShadeColorNoperspective;	\n"
-			;
-		else
-			m_part +=
 			"  lowp vec4 shadeColor = uScreenSpaceTriangle == 0 ? vShadeColor : vShadeColorNoperspective;	\n"
-			;
-
+		;
 		m_part += "#define WRAP(x, low, high) mod((x)-(low), (high)-(low)) + (low) \n"; // Return wrapped value of x in interval [low, high)
 		// m_part += "#define WRAP(x, low, high) (x) - ((high)-(low)) * floor(((x)-(low))/((high)-(low)))  \n"; // Perhaps more compatible?
 		// m_part += "#define WRAP(x, low, high) (x) + ((high)-(low)) * (1.0-step(low,x)) - ((high)-(low)) * step(high,x) \n"; // Step based version. Only wraps correctly if input is in the range [low-(high-low), high + (high-low)). Similar to old code.
@@ -1571,16 +1403,8 @@ public:
 			"  lowp vec4 vec_color, combined_color;		\n"
 			"  lowp float alpha1, alpha2;				\n"
 			"  lowp vec3 color1, color2, input_color;	\n"
-		;
-		if (config.generalEmulation.enableClipping != 0)
-			m_part +=
-			"  lowp vec4 shadeColor = vShadeColorNoperspective;	\n"
-			;
-		else
-			m_part +=
 			"  lowp vec4 shadeColor = uScreenSpaceTriangle == 0 ? vShadeColor : vShadeColorNoperspective;	\n"
-			;
-
+		;
 		m_part += "#define WRAP(x, low, high) mod((x)-(low), (high)-(low)) + (low) \n"; // Return wrapped value of x in interval [low, high)
 		// m_part += "#define WRAP(x, low, high) (x) - ((high)-(low)) * floor(((x)-(low))/((high)-(low)))  \n"; // Perhaps more compatible?
 		// m_part += "#define WRAP(x, low, high) (x) + (2.0) * (1.0-step(low,x)) - (2.0) * step(high,x) \n"; // Step based version. Only wraps correctly if input is in the range [low-(high-low), high + (high-low)). Similar to old code.
@@ -1594,19 +1418,10 @@ public:
 	{
 		if (config.generalEmulation.enableLegacyBlending == 0) {
 			m_part =
-				"  #define MUXA(pos) dot(muxA, STVEC(pos))									\n"
-				"  #define MUXB(pos) dot(muxB, STVEC(pos))									\n"
-				"  #define MUXPM(pos) muxPM*(STVEC(pos))									\n"
-				"  #define MUXF(pos) dot(muxF, STVEC(pos))									\n"
-				"  lowp vec4 lastFragColor = LAST_FRAG_COLOR;								\n"
-				"  lowp float lastFragAlpha = LAST_FRAG_ALPHA;								\n"
-				"  lowp mat4 muxPM = mat4(vec4(0.0), lastFragColor, uBlendColor, uFogColor); \n"
+				"  lowp mat4 muxPM = mat4(vec4(0.0), vec4(0.0), uBlendColor, uFogColor);	\n"
 				"  lowp vec4 muxA = vec4(0.0, uFogColor.a, shadeColor.a, 0.0);				\n"
-				"  lowp vec4 muxB = vec4(0.0, lastFragAlpha, 1.0, 0.0);				\n"
-				"  lowp vec4 muxF = vec4(0.0, 1.0, 0.0, 0.0);								\n"
-				"  lowp vec4 muxp, muxm, srcColor1, srcColor2;								\n"
-				"  lowp float muxa, muxb, dstFactor1, dstFactor2, muxaf, muxbf;				\n"
-				;
+				"  lowp vec4 muxB = vec4(0.0, 1.0, 1.0, 0.0);								\n"
+			;
 		}
 	}
 };
@@ -1757,7 +1572,7 @@ public:
 		if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
 			m_part = "  bool should_discard = false;	\n";
 
-			if (_glinfo.imageTextures && !_glinfo.n64DepthWithFbFetch) {
+			if (_glinfo.imageTextures) {
 				if (_glinfo.fragment_interlock)
 					m_part += "  beginInvocationInterlockARB();	\n";
 				else if (_glinfo.fragment_interlockNV)
@@ -1771,7 +1586,7 @@ public:
 				"  else if (!depth_compare(fragDepth)) should_discard = true; \n"
 				;
 
-			if (_glinfo.imageTextures & !_glinfo.n64DepthWithFbFetch) {
+			if (_glinfo.imageTextures) {
 				if (_glinfo.fragment_interlock)
 					m_part += "  endInvocationInterlockARB();	\n";
 				else if (_glinfo.fragment_interlockNV)
@@ -1811,12 +1626,13 @@ public:
 	{
 		if (_glinfo.isGLES2) {
 			m_part =
-					"  gl_FragColor = fragColor; \n"
-					"} \n\n";
+				"  gl_FragColor = fragColor; \n"
+				"} \n\n"
+				;
 		} else {
 			m_part =
-					"} \n\n"
-					;
+				"} \n\n"
+				;
 		}
 	}
 };
@@ -1954,24 +1770,12 @@ public:
 						"highp float writeDepth()																		\n"
 						"{																								\n"
 						;
-					if (_glinfo.isGLESX) {
-						if (_glinfo.noPerspective) {
-							m_part +=
-								"  if (uClampMode == 1 && (vZCoord > 1.0)) discard;										\n"
-								"  highp float FragDepth = (uDepthSource != 0) ? uPrimDepth :							\n"
-								"         clamp((vZCoord - uPolygonOffset) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
-							;
-						} else if (config.generalEmulation.enableClipping != 0) {
-							m_part +=
+					if (_glinfo.isGLESX && _glinfo.noPerspective) {
+						m_part +=
+							"  if (uClampMode == 1 && (vZCoord > 1.0)) discard;	\n"
 							"  highp float FragDepth = (uDepthSource != 0) ? uPrimDepth :								\n"
-							"      clamp(8.0 * (gl_FragCoord.z * 2.0 - 1.0) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
+							"           clamp((vZCoord - uPolygonOffset) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
 							;
-						} else {
-							m_part +=
-							"  highp float FragDepth = (uDepthSource != 0) ? uPrimDepth :								\n"
-							"            clamp((gl_FragCoord.z * 2.0 - 1.0) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
-							;
-						}
 					} else {
 						m_part +=
 							"  highp float FragDepth = (uDepthSource != 0) ? uPrimDepth :								\n"
@@ -1979,41 +1783,23 @@ public:
 						;
 					}
 					m_part +=
-						"  highp int iZ = FragDepth > 0.999 ? 262143 : int(floor(FragDepth * 262143.0));					\n"
+						"  highp int iZ = FragDepth > 0.999 ? 262143 : int(floor(FragDepth * 262143.0));				\n"
 						"  mediump int y0 = clamp(iZ/512, 0, 511);															\n"
 						"  mediump int x0 = iZ - 512*y0;																	\n"
-						"  highp uint iN64z = texelFetch(uZlutImage,ivec2(x0,y0), 0).r;										\n"
-						"  return clamp(float(iN64z)/65532.0, 0.0, 1.0);													\n"
+						"  highp uint iN64z = texelFetch(uZlutImage,ivec2(x0,y0), 0).r;											\n"
+						"  return clamp(float(iN64z)/65532.0, 0.0, 1.0);											\n"
 						"}																									\n"
 						;
 				} else {
-					if (_glinfo.isGLESX) {
-						if (_glinfo.noPerspective) {
-							m_part =
-								"highp float writeDepth()																	\n"
-								"{																							\n"
-								"  if (uClampMode == 1 && (vZCoord > 1.0)) discard;											\n"
-								"  if (uDepthSource != 0) return uPrimDepth;												\n"
-								"  return clamp((vZCoord - uPolygonOffset) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);		\n"
-								"}																							\n"
+					if (_glinfo.isGLESX && _glinfo.noPerspective) {
+						 m_part =
+							"highp float writeDepth()																	\n"
+							"{																							\n"
+							"  if (uClampMode == 1 && (vZCoord > 1.0)) discard;											\n"
+							"  if (uDepthSource != 0) return uPrimDepth;												\n"
+							"  return clamp((vZCoord - uPolygonOffset) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);		\n"
+							"}																							\n"
 							;
-						} else if (config.generalEmulation.enableClipping != 0) {
-							m_part =
-								"highp float writeDepth()						        										\n"
-								"{																								\n"
-								"  if (uDepthSource != 0) return uPrimDepth;													\n"
-								"  return clamp(8.0 * (gl_FragCoord.z * 2.0 - 1.0) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
-								"}																								\n"
-							;
-						} else {
-							m_part =
-								"highp float writeDepth()						        									\n"
-								"{																							\n"
-								"  if (uDepthSource != 0) return uPrimDepth;												\n"
-								"  return clamp((gl_FragCoord.z * 2.0 - 1.0) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
-								"}																							\n"
-								;
-						}
 					} else {
 						m_part =
 							"highp float writeDepth()						        									\n"
@@ -2021,7 +1807,7 @@ public:
 							"  if (uDepthSource != 0) return uPrimDepth;												\n"
 							"  return clamp((gl_FragCoord.z * 2.0 - 1.0) * uDepthScale.s + uDepthScale.t, 0.0, 1.0);	\n"
 							"}																							\n"
-						;
+							;
 					}
 				}
 			}
@@ -2248,7 +2034,7 @@ public:
 class ShaderCalcLight : public ShaderPart
 {
 public:
-	ShaderCalcLight(const opengl::GLInfo & /*_glinfo*/)
+	ShaderCalcLight(const opengl::GLInfo & _glinfo)
 	{
 		m_part =
 			"uniform mediump vec3 uLightDirection[8];	\n"
@@ -2492,7 +2278,7 @@ public:
 				"{														\n"
 				"  if (uEnableDepth == 0) return true;					\n"
 				;
-			if (_glinfo.imageTextures && !_glinfo.n64DepthWithFbFetch) {
+			if (_glinfo.imageTextures) {
 				m_part +=
 				"  ivec2 coord = ivec2(gl_FragCoord.xy);				\n"
 				"  highp vec4 depthZ = imageLoad(uDepthImageZ,coord);	\n"
@@ -2528,20 +2314,19 @@ public:
 				"  bRes = bRes || (uEnableDepthCompare == 0);			\n"
 				"  if (uEnableDepthUpdate != 0 && bRes) {				\n"
 				;
-			if (_glinfo.n64DepthWithFbFetch) {
-				m_part +=
-					"    depthZ.r = curZ;									\n"
-					"    depthDeltaZ.r = dz;								\n"
-					;
-			} else if (_glinfo.imageTextures) {
+			if (_glinfo.imageTextures) {
 				m_part +=
 				"    highp vec4 depthOutZ = vec4(curZ, 1.0, 1.0, 1.0);		\n"
 				"    highp vec4 depthOutDeltaZ = vec4(dz, 1.0, 1.0, 1.0);	\n"
 				"    imageStore(uDepthImageZ, coord, depthOutZ);			\n"
 				"    imageStore(uDepthImageDeltaZ, coord, depthOutDeltaZ);	\n"
 					;
+			} else if (_glinfo.ext_fetch) {
+				m_part +=
+				"    depthZ.r = curZ;									\n"
+				"    depthDeltaZ.r = dz;								\n"
+					;
 			}
-
 			m_part +=
 				"  }													\n"
 				"  return bRes;											\n"
@@ -2563,7 +2348,7 @@ public:
 				"  ivec2 coord = ivec2(gl_FragCoord.xy);				\n"
 				"  if (uEnableDepthCompare != 0) {						\n"
 				;
-			if (_glinfo.imageTextures && !_glinfo.n64DepthWithFbFetch) {
+			if (_glinfo.imageTextures) {
 				m_part +=
 					"    highp vec4 depthZ = imageLoad(uDepthImageZ,coord);	\n"
 					;
@@ -2573,42 +2358,24 @@ public:
 				"    if (curZ >= bufZ) return false;					\n"
 				"  }													\n"
 				;
-			if (_glinfo.n64DepthWithFbFetch) {
-				m_part +=
-					"  depthZ.r = Z;	\n"
-					"  depthDeltaZ.r = 0.0;	\n"
-					;
-			} else if (_glinfo.imageTextures) {
+			if (_glinfo.imageTextures) {
 				m_part +=
 					"  highp vec4 depthOutZ = vec4(Z, 1.0, 1.0, 1.0);		\n"
 					"  highp vec4 depthOutDeltaZ = vec4(0.0, 1.0, 1.0, 1.0);\n"
 					"  imageStore(uDepthImageZ,coord, depthOutZ);			\n"
 					"  imageStore(uDepthImageDeltaZ,coord, depthOutDeltaZ);	\n"
 					;
+			} else if (_glinfo.ext_fetch) {
+				m_part +=
+					"  depthZ.r = Z;	\n"
+					"  depthDeltaZ.r = 0.0;	\n"
+					;
 			}
-
 			m_part +=
 				"  return true;											\n"
 				"}														\n"
 				;
 		}
-	}
-};
-
-
-class ShaderFragmentCorrectTexCoords : public ShaderPart {
-public:
-	ShaderFragmentCorrectTexCoords() {
-		m_part +=
-			" highp vec2 mTexCoord0 = vTexCoord0 + vec2(0.0001);						\n"
-			" highp vec2 mTexCoord1 = vTexCoord1 + vec2(0.0001);						\n"
-			" mTexCoord0 += uTexCoordOffset[0];											\n"
-			" mTexCoord1 += uTexCoordOffset[1];											\n"
-			" if (uUseTexCoordBounds != 0) {											\n"
-			" mTexCoord0 = clamp(mTexCoord0, uTexCoordBounds0.xy, uTexCoordBounds0.zw); \n"
-			" mTexCoord1 = clamp(mTexCoord1, uTexCoordBounds1.xy, uTexCoordBounds1.zw); \n"
-			" }																			\n"
-			;
 	}
 };
 
@@ -2675,7 +2442,7 @@ public:
 	ShaderFragmentTextureEngineTex0(const opengl::GLInfo _glinfo)
 	{
 		m_part =
-			"textureEngine0(mTexCoord0, tcData0); \n"
+			"textureEngine0(vTexCoord0, tcData0); \n"
 			;
 	}
 };
@@ -2685,30 +2452,10 @@ public:
 	ShaderFragmentTextureEngineTex1(const opengl::GLInfo _glinfo)
 	{
 		m_part =
-			"textureEngine1(mTexCoord1, tcData1); \n"
+			"textureEngine1(vTexCoord1, tcData1); \n"
 			;
 	}
 };
-
-class ShaderCoverage : public ShaderPart {
-public:
-	ShaderCoverage() {
-		m_part =
-			"const highp vec2 bias[8] = vec2[8] (vec2(-0.5,-0.5), vec2(0.0, -0.5), vec2(-0.25,-0.25), vec2(0.25, -0.25), \n"
-			"                   vec2(-0.5, 0.0), vec2(0.0,0.0), vec2(-0.25,0.25), vec2(0.25,0.25)); \n"
-			"highp vec4 dBCdx = dFdx(vBaryCoords);														\n"
-			"highp vec4 dBCdy = dFdy(vBaryCoords);														\n"
-			"cvg = 0.0;																					\n"
-			"for (int i = 0; i<8; i++) {																\n"
-			"  highp vec2 currentBias = bias[i];														\n"
-			"  highp vec4 baryCoordsBiased = vBaryCoords + dBCdx*currentBias.x + dBCdy * currentBias.y; \n"
-			"  lowp vec4 inside = step(0.0, baryCoordsBiased);											\n"
-			"  cvg += 0.125 * inside[0] * inside[1] * inside[2] * inside[3];							\n"
-			"}																							\n"
-			;
-	}
-};
-
 
 /*---------------ShaderPartsEnd-------------*/
 
@@ -2821,34 +2568,23 @@ CombinerInputs CombinerProgramBuilder::compileCombiner(const CombinerKey & _key,
 	else
 		ssShader << "  lowp vec4 clampedColor = clamp(cmbRes, 0.0, 1.0);" << std::endl;
 
-	if (g_cycleType <= G_CYC_2CYCLE) {
+	if (g_cycleType <= G_CYC_2CYCLE)
 		m_callDither->write(ssShader);
 
-		ssShader << "if (uCvgXAlpha != 0) cvg *= clampedColor.a;" << std::endl;
-		ssShader << "if (uAlphaCvgSel != 0) clampedColor.a = cvg; " << std::endl;
-	}
-
-
 	if (config.generalEmulation.enableLegacyBlending == 0) {
-		if (g_cycleType <= G_CYC_2CYCLE) {
+		if (g_cycleType <= G_CYC_2CYCLE)
 			m_blender1->write(ssShader);
-			if (g_cycleType == G_CYC_2CYCLE)
-				m_blender2->write(ssShader);
-			m_blenderAlpha->write(ssShader);
-		} else
-			ssShader << "  fragColor = clampedColor;" << std::endl;
+		if (g_cycleType == G_CYC_2CYCLE)
+			m_blender2->write(ssShader);
 
+		ssShader << "  fragColor = clampedColor;" << std::endl;
 	}
 	else {
 		ssShader << "  fragColor = clampedColor;" << std::endl;
 		m_legacyBlender->write(ssShader);
 	}
 
-
-	// SHOW COVERAGE HACK
-	//	ssShader << "fragColor.rgb = vec3(cvg);" << std::endl;
-
-	_strShader = ssShader.str();
+	_strShader = std::move(ssShader.str());
 	return inputs;
 }
 
@@ -2918,18 +2654,10 @@ graphics::CombinerProgram * CombinerProgramBuilder::buildCombinerProgram(Combine
 	else
 		m_fragmentMain->write(ssShader);
 
-
 	if (g_cycleType <= G_CYC_2CYCLE)
 		m_fragmentBlendMux->write(ssShader);
 
-	if (g_cycleType <= G_CYC_2CYCLE && m_useCoverage)
-		m_shaderCoverage->write(ssShader);
-	else
-		ssShader << "cvg = 1.0; \n" << std::endl;
-
-
 	if (bUseTextures) {
-		m_fragmentCorrectTexCoords->write(ssShader);
 		if (combinerInputs.usesTile(0))
 		{
 			m_fragmentTextureEngineTex0->write(ssShader);
@@ -2998,7 +2726,7 @@ graphics::CombinerProgram * CombinerProgramBuilder::buildCombinerProgram(Combine
 
 	m_shaderN64DepthRender->write(ssShader);
 
-	const std::string strFragmentShader(ssShader.str());
+	const std::string strFragmentShader(std::move(ssShader.str()));
 
 	/* Create shader program */
 
@@ -3052,7 +2780,7 @@ GLuint _createVertexShader(ShaderPart * _header, ShaderPart * _body, ShaderPart 
 	_header->write(ssShader);
 	_body->write(ssShader);
 	_footer->write(ssShader);
-	const std::string strShader(ssShader.str());
+	const std::string strShader(std::move(ssShader.str()));
 	const GLchar * strShaderData = strShader.data();
 
 	GLuint shader_object = glCreateShader(GL_VERTEX_SHADER);
@@ -3064,9 +2792,8 @@ GLuint _createVertexShader(ShaderPart * _header, ShaderPart * _body, ShaderPart 
 }
 
 CombinerProgramBuilder::CombinerProgramBuilder(const opengl::GLInfo & _glinfo, opengl::CachedUseProgram * _useProgram)
-: m_blender1(new ShaderBlender1(_glinfo))
-, m_blender2(new ShaderBlender2(_glinfo))
-, m_blenderAlpha (new ShaderBlenderAlpha(_glinfo))
+: m_blender1(new ShaderBlender1)
+, m_blender2(new ShaderBlender2)
 , m_legacyBlender(new ShaderLegacyBlender)
 , m_clamp(new ShaderClamp)
 , m_signExtendColorC(new ShaderSignExtendColorC)
@@ -3099,7 +2826,6 @@ CombinerProgramBuilder::CombinerProgramBuilder(const opengl::GLInfo & _glinfo, o
 , m_fragmentBlendMux(new ShaderFragmentBlendMux(_glinfo))
 , m_fragmentReadTex0(new ShaderFragmentReadTex0(_glinfo))
 , m_fragmentReadTex1(new ShaderFragmentReadTex1(_glinfo))
-, m_fragmentCorrectTexCoords(new ShaderFragmentCorrectTexCoords())
 , m_fragmentTextureEngineTex0(new ShaderFragmentTextureEngineTex0(_glinfo))
 , m_fragmentTextureEngineTex1(new ShaderFragmentTextureEngineTex1(_glinfo))
 , m_fragmentReadTexCopyMode(new ShaderFragmentReadTexCopyMode(_glinfo))
@@ -3117,10 +2843,8 @@ CombinerProgramBuilder::CombinerProgramBuilder(const opengl::GLInfo & _glinfo, o
 , m_shaderN64DepthCompare(new ShaderN64DepthCompare(_glinfo))
 , m_shaderN64DepthRender(new ShaderN64DepthRender(_glinfo))
 , m_shaderTextureEngine(new ShaderTextureEngine(_glinfo))
-, m_shaderCoverage(new ShaderCoverage())
 , m_useProgram(_useProgram)
 , m_combinerOptionsBits(graphics::CombinerProgram::getShaderCombinerOptionsBits())
-, m_useCoverage(_glinfo.coverage && config.generalEmulation.enableCoverage != 0)
 {
 	m_vertexShaderRect = _createVertexShader(m_vertexHeader.get(), m_vertexRect.get(), m_vertexEnd.get());
 	m_vertexShaderTriangle = _createVertexShader(m_vertexHeader.get(), m_vertexTriangle.get(), m_vertexEnd.get());

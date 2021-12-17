@@ -43,14 +43,12 @@
 #include "main/version.h"
 #include "main/cheat.h"
 #include "main/workqueue.h"
-#include "main/netplay.h"
 #include "plugin/plugin.h"
 #include "vidext.h"
 
 /* some local state variables */
 static int l_CoreInit = 0;
 static int l_ROMOpen = 0;
-static int l_CallerUsingSDL = 0;
 
 /* functions exported outside of libmupen64plus to front-end application */
 EXPORT m64p_error CALL CoreStartup(int APIVersion, const char *ConfigPath, const char *DataPath, void *Context,
@@ -59,9 +57,6 @@ EXPORT m64p_error CALL CoreStartup(int APIVersion, const char *ConfigPath, const
 {
     if (l_CoreInit)
         return M64ERR_ALREADY_INIT;
-
-    /* check wether the caller has already initialized SDL */
-    l_CallerUsingSDL = 1; //(SDL_WasInit(0) != 0);
 
     /* very first thing is to set the callback functions for debug info and state changing*/
     SetDebugCallback(DebugCallback, Context);
@@ -79,8 +74,7 @@ EXPORT m64p_error CALL CoreStartup(int APIVersion, const char *ConfigPath, const
     g_mem_base = init_mem_base();
     if (g_mem_base == NULL) {
         return M64ERR_NO_MEMORY;
-    }
-
+    } 
     /* The ROM database contains MD5 hashes, goodnames, and some game-specific parameters */
     romdatabase_open();
 
@@ -150,12 +144,6 @@ EXPORT m64p_error CALL CoreDoCommand(m64p_command Command, int ParamInt, void *P
             cheat_delete_all(&g_cheat_ctx);
             cheat_uninit(&g_cheat_ctx);
             return close_rom();
-        case M64CMD_PIF_OPEN:
-            if (g_EmulatorRunning)
-                return M64ERR_INVALID_STATE;
-            if (ParamPtr == NULL || ParamInt != 2048)
-                return M64ERR_INPUT_ASSERT;
-            return open_pif((const unsigned char *) ParamPtr, ParamInt);
         case M64CMD_ROM_GET_HEADER:
             if (!l_ROMOpen)
                 return M64ERR_INVALID_STATE;
@@ -180,15 +168,6 @@ EXPORT m64p_error CALL CoreDoCommand(m64p_command Command, int ParamInt, void *P
             if (sizeof(m64p_rom_settings) < ParamInt)
                 ParamInt = sizeof(m64p_rom_settings);
             memcpy(ParamPtr, &ROM_SETTINGS, ParamInt);
-            return M64ERR_SUCCESS;
-        case M64CMD_ROM_SET_SETTINGS:
-            if (g_EmulatorRunning || !l_ROMOpen)
-                return M64ERR_INVALID_STATE;
-            if (ParamPtr == NULL)
-                return M64ERR_INPUT_ASSERT;
-            if ((int)sizeof(m64p_rom_settings) < ParamInt)
-                ParamInt = sizeof(m64p_rom_settings);
-            memcpy(&ROM_SETTINGS, ParamPtr, ParamInt);
             return M64ERR_SUCCESS;
         case M64CMD_EXECUTE:
             if (g_EmulatorRunning || !l_ROMOpen)
@@ -258,30 +237,6 @@ EXPORT m64p_error CALL CoreDoCommand(m64p_command Command, int ParamInt, void *P
             if (!g_EmulatorRunning)
                 return M64ERR_INVALID_STATE;
             return M64ERR_SUCCESS;
-        case M64CMD_NETPLAY_INIT:
-            if (ParamInt < 1 || ParamPtr == NULL)
-                return M64ERR_INPUT_INVALID;
-            return netplay_start(ParamPtr, ParamInt);
-        case M64CMD_NETPLAY_CONTROL_PLAYER:
-            if (ParamInt < 1 || ParamInt > 4 || ParamPtr == NULL)
-                return M64ERR_INPUT_INVALID;
-            if (netplay_register_player(ParamInt - 1, Controls[netplay_next_controller()].Plugin, Controls[netplay_next_controller()].RawData, *(uint32_t*)ParamPtr))
-            {
-                netplay_set_controller(ParamInt - 1);
-                return M64ERR_SUCCESS;
-            }
-            else
-                return M64ERR_INPUT_ASSERT; // player already in use
-        case M64CMD_NETPLAY_GET_VERSION:
-            if (ParamPtr == NULL)
-                return M64ERR_INPUT_INVALID;
-            *(uint32_t*)ParamPtr = NETPLAY_CORE_VERSION;
-            if (ParamInt == NETPLAY_API_VERSION)
-                return M64ERR_SUCCESS;
-            else
-                return M64ERR_INCOMPATIBLE;
-        case M64CMD_NETPLAY_CLOSE:
-            return netplay_stop();
         default:
             return M64ERR_INPUT_INVALID;
     }
@@ -301,8 +256,6 @@ EXPORT m64p_error CALL CoreAddCheat(const char *CheatName, m64p_cheat_code *Code
 {
     if (!l_CoreInit)
         return M64ERR_NOT_INIT;
-    if (netplay_is_init())
-        return M64ERR_INVALID_STATE;
     if (CheatName == NULL || CodeList == NULL)
         return M64ERR_INPUT_ASSERT;
     if (strlen(CheatName) < 1 || NumCodes < 1)
@@ -318,8 +271,6 @@ EXPORT m64p_error CALL CoreCheatEnabled(const char *CheatName, int Enabled)
 {
     if (!l_CoreInit)
         return M64ERR_NOT_INIT;
-    if (netplay_is_init())
-        return M64ERR_INVALID_STATE;
     if (CheatName == NULL)
         return M64ERR_INPUT_ASSERT;
 
@@ -357,10 +308,6 @@ EXPORT m64p_error CALL CoreGetRomSettings(m64p_rom_settings *RomSettings, int Ro
     RomSettings->rumble = entry->rumble;
     RomSettings->transferpak = entry->transferpak;
     RomSettings->mempak = entry->mempak;
-    RomSettings->disableextramem = entry->disableextramem;
-    RomSettings->countperop = entry->countperop;
-    RomSettings->savetype = entry->savetype;
-    RomSettings->sidmaduration = entry->sidmaduration;
 
     return M64ERR_SUCCESS;
 }

@@ -223,8 +223,7 @@ static void iir_filter_init(struct iir_data *iir,
       case RIAA_phono: /* http://www.dsprelated.com/showmessage/73300/3.php */
       {
          double y, b_re, a_re, b_im, a_im, g;
-         float b[3] = {0.0f};
-         float a[3] = {0.0f};
+         float b[3], a[3];
 
          if ((int)sample_rate == 44100)
          {

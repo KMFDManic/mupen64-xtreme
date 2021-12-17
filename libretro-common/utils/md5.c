@@ -34,7 +34,7 @@
  * optimizations are not included to reduce source code size and avoid
  * compile-time configuration.
  */
-#include <lrc_hash.h>
+#include <rhash.h>
 
 #include <string.h>
 

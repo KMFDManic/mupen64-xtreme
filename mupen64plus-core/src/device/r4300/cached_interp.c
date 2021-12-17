@@ -57,10 +57,7 @@
     if (r4300->emumode != EMUMODE_DYNAREC) \
       (*r4300_pc_struct(r4300)) += x; \
     else \
-    { \
-      assert(*r4300_pc_struct(r4300) == &r4300->new_dynarec_hot_state.fake_pc); \
-      r4300->new_dynarec_hot_state.pcaddr += x*4; \
-    }
+      assert(*r4300_pc_struct(r4300) == &r4300->new_dynarec_hot_state.fake_pc)
 #else
 #define ADD_TO_PC(x) (*r4300_pc_struct(r4300)) += x;
 #endif

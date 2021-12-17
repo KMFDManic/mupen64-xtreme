@@ -164,15 +164,6 @@ namespace opengl {
 			ptrBlendFunc(sfactor, dfactor);
 	}
 
-	void FunctionWrapper::wrBlendFuncSeparate(GLenum sfactorcolor, GLenum dfactorcolor, GLenum sfactoralpha, GLenum dfactoralpha)
-	{
-		if (m_threaded_wrapper)
-			executeCommand(GlBlendFuncSeparateCommand::get(sfactorcolor, dfactorcolor, sfactoralpha, dfactoralpha));
-		else
-			ptrBlendFuncSeparate(sfactorcolor, dfactorcolor, sfactoralpha, dfactoralpha);
-	}
-
-
 	void FunctionWrapper::wrPixelStorei(GLenum pname, GLint param)
 	{
 		if (m_threaded_wrapper)
@@ -395,7 +386,7 @@ namespace opengl {
 			ptrDrawElements(mode, count, type, indices);
 			return;
 		}
-
+		
 		int typeSizeBytes;
 		unsigned int maxElementIndex;
 
@@ -1462,7 +1453,7 @@ namespace opengl {
 		if (m_threaded_wrapper) {
 			executeCommand(CoreVideoQuitCommand::get());
 			executeCommand(ShutdownCommand::get());
-		}
+		} 
 		else
 			CoreVideoQuitCommand::get()->performCommandSingleThreaded();
 
@@ -1484,18 +1475,6 @@ namespace opengl {
 			executeCommand(CoreVideoSetVideoModeCommand::get(screenWidth, screenHeight, bitsPerPixel, mode, flags, returnValue));
 		else
 			CoreVideoSetVideoModeCommand::get(screenWidth, screenHeight, bitsPerPixel, mode, flags, returnValue)->performCommandSingleThreaded();
-
-		return returnValue;
-	}
-
-	m64p_error FunctionWrapper::CoreVideo_SetVideoModeWithRate(int screenWidth, int screenHeight, int refreshRate, int bitsPerPixel, m64p_video_mode mode, m64p_video_flags flags)
-	{
-		m64p_error returnValue;
-
-		if (m_threaded_wrapper)
-			executeCommand(CoreVideoSetVideoModeWithRateCommand::get(screenWidth, screenHeight, refreshRate, bitsPerPixel, mode, flags, returnValue));
-		else
-			CoreVideoSetVideoModeWithRateCommand::get(screenWidth, screenHeight, refreshRate, bitsPerPixel, mode, flags, returnValue)->performCommandSingleThreaded();
 
 		return returnValue;
 	}
@@ -1595,28 +1574,42 @@ namespace opengl {
 		switch (format)
 		{
 		case GL_RED:
-		case GL_RED_INTEGER:
-		case GL_STENCIL_INDEX:
-		case GL_DEPTH_COMPONENT:
-		case GL_LUMINANCE:
 			components = 1;
 			break;
 		case GL_RG:
-		case GL_RG_INTEGER:
-		case GL_DEPTH_STENCIL:
 			components = 2;
 			break;
 		case GL_RGB:
 		case GL_BGR:
-		case GL_RGB_INTEGER:
-		case GL_BGR_INTEGER:
 			components = 3;
 			break;
 		case GL_RGBA:
 		case GL_BGRA:
+			components = 4;
+			break;
+		case GL_RED_INTEGER:
+			components = 1;
+			break;
+		case GL_RG_INTEGER:
+			components = 2;
+			break;
+		case GL_RGB_INTEGER:
+		case GL_BGR_INTEGER:
+			components = 3;
+			break;
 		case GL_RGBA_INTEGER:
 		case GL_BGRA_INTEGER:
 			components = 4;
+			break;
+		case GL_STENCIL_INDEX:
+		case GL_DEPTH_COMPONENT:
+			components = 1;
+			break;
+		case GL_DEPTH_STENCIL:
+			components = 2;
+			break;
+		case GL_LUMINANCE:
+			components = 1;
 			break;
 		default:
 			components = -1;
@@ -1630,11 +1623,15 @@ namespace opengl {
 			break;
 		case GL_UNSIGNED_SHORT:
 		case GL_SHORT:
-		case GL_HALF_FLOAT:
 			bytesPerPixel = components * 2;
 			break;
 		case GL_UNSIGNED_INT:
 		case GL_INT:
+			bytesPerPixel = components * 4;
+			break;
+		case GL_HALF_FLOAT:
+			bytesPerPixel = components * 2;
+			break;
 		case GL_FLOAT:
 			bytesPerPixel = components * 4;
 			break;

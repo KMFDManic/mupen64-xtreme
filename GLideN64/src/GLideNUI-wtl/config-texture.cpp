@@ -1,6 +1,6 @@
 #include "config-texture.h"
 #include "resource.h"
-#include "util/util.h"
+#include "util.h"
 #include "../Config.h"
 #include "Language.h"
 #include <Shlobj.h>
@@ -62,7 +62,8 @@ void CTextureEnhancementTab::ApplyLanguage(void)
 	SetDlgItemTextW(IDC_TEX_DUMP_PATH_STATIC, wGS(TEXTURE_DUMP_PATH).c_str());
 	SetDlgItemTextW(IDC_CHK_ALPHA_CHANNEL, wGS(TEXTURE_USE_FULL_TRANSPARENCIES).c_str());
 	SetDlgItemTextW(IDC_CHK_ALTERNATIVE_CRC, wGS(TEXTURE_ALTERNATIVE_CRC).c_str());
-	SetDlgItemTextW(IDC_CHK_HIRES_TEX_FILESTORAGE, wGS(TEXTURE_USE_FILE_STORAGE).c_str());
+	SetDlgItemTextW(IDC_CHK_HIRES_TEX_FILESTORAGE, wGS(TEXTURE_FILE_STORAGE).c_str());
+	SetDlgItemTextW(IDC_CHK_TEXTURE_DUMP, wGS(TEXTURE_DUMP_EDIT).c_str());
 	SetDlgItemTextW(IDC_TEXTURE_FILTER_CACHE_STATIC, wGS(TEXTURE_SIZE_OF_MEMORY_CACHE).c_str());
 	SetDlgItemTextW(IDC_CHK_SAVE_TEXTURE_CACHE, wGS(TEXTURE_SAVE_ENHANCED).c_str());
 	SetDlgItemTextW(IDC_CHK_COMPRESS_CACHE, wGS(TEXTURE_COMPRESS_CACHE).c_str());
@@ -85,8 +86,8 @@ void CTextureEnhancementTab::ApplyLanguage(void)
 	TTSetTxt(GetDlgItem(IDC_CHK_ALPHA_CHANNEL), tooltip.c_str());
 	tooltip = wGS(TEXTURE_ALTERNATIVE_CRC_TOOLTIP);
 	TTSetTxt(GetDlgItem(IDC_CHK_ALTERNATIVE_CRC), tooltip.c_str());
-	tooltip = wGS(TEXTURE_USE_FILE_STORAGE_TOOLTIP);
-	TTSetTxt(GetDlgItem(IDC_CHK_HIRES_TEX_FILESTORAGE), tooltip.c_str());
+	tooltip = wGS(TEXTURE_DUMP_EDIT_TOOLTIP);
+	TTSetTxt(GetDlgItem(IDC_CHK_TEXTURE_DUMP), tooltip.c_str());
 	tooltip = wGS(TEXTURE_SIZE_OF_MEMORY_CACHE_TOOLTIP);
 	TTSetTxt(GetDlgItem(IDC_TEXTURE_FILTER_CACHE_STATIC), tooltip.c_str());
 	TTSetTxt(GetDlgItem(IDC_TEXTURE_FILTER_CACHE_EDIT), tooltip.c_str());
@@ -159,6 +160,7 @@ void CTextureEnhancementTab::OnTexturePack(UINT /*Code*/, int /*id*/, HWND /*ctl
 	CButton(GetDlgItem(IDC_CHK_ALPHA_CHANNEL)).EnableWindow(UseTextPack);
 	CButton(GetDlgItem(IDC_CHK_ALTERNATIVE_CRC)).EnableWindow(UseTextPack);
 	CButton(GetDlgItem(IDC_CHK_HIRES_TEX_FILESTORAGE)).EnableWindow(UseTextPack);
+	CButton(GetDlgItem(IDC_CHK_TEXTURE_DUMP)).EnableWindow(UseTextPack);
 }
 
 LRESULT CTextureEnhancementTab::OnScroll(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/)
@@ -179,7 +181,7 @@ void CTextureEnhancementTab::LoadSettings(bool /*blockCustomSettings*/)
 	CButton(GetDlgItem(IDC_CHK_IGNORE_BACKGROUNDS)).SetCheck(config.textureFilter.txFilterIgnoreBG != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_ENHANCED_TEX_FILE_STORAGE)).SetCheck(config.textureFilter.txEnhancedTextureFileStorage != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_TEXTURE_PACK)).SetCheck(config.textureFilter.txHiresEnable != 0 ? BST_CHECKED : BST_UNCHECKED);
-
+		
 	GetDlgItem(IDC_TEX_PACK_PATH_EDIT).SetWindowText(config.textureFilter.txPath);
 	GetDlgItem(IDC_TEX_CACHE_PATH_EDIT).SetWindowText(config.textureFilter.txCachePath);
 	GetDlgItem(IDC_TEX_DUMP_PATH_EDIT).SetWindowText(config.textureFilter.txDumpPath);
@@ -187,10 +189,11 @@ void CTextureEnhancementTab::LoadSettings(bool /*blockCustomSettings*/)
 	CButton(GetDlgItem(IDC_CHK_ALPHA_CHANNEL)).SetCheck(config.textureFilter.txHiresFullAlphaChannel != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_ALTERNATIVE_CRC)).SetCheck(config.textureFilter.txHresAltCRC != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_HIRES_TEX_FILESTORAGE)).SetCheck(config.textureFilter.txHiresTextureFileStorage != 0 ? BST_CHECKED : BST_UNCHECKED);
+	CButton(GetDlgItem(IDC_CHK_TEXTURE_DUMP)).SetCheck(config.textureFilter.txDump != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_SAVE_TEXTURE_CACHE)).SetCheck(config.textureFilter.txSaveCache != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_COMPRESS_CACHE)).SetCheck(config.textureFilter.txCacheCompression != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_FORCE_16BPP)).SetCheck(config.textureFilter.txForce16bpp != 0 ? BST_CHECKED : BST_UNCHECKED);
-
+   
 	m_TextureFilterCacheSpin.SetPos((config.textureFilter.txCacheSize / gc_uMegabyte) /  50);
 
 	OnFileStorage(0, 0, NULL);
@@ -205,28 +208,17 @@ void CTextureEnhancementTab::SaveDirectory(int EditCtrl, wchar_t * txPath)
 	int TxtLen = EditWnd.GetWindowTextLength();
 	std::wstring Path;
 	Path.resize(TxtLen + 1);
-	EditWnd.GetWindowTextW((wchar_t *)Path.data(), static_cast<int>(Path.size()));
+	EditWnd.GetWindowText((wchar_t *)Path.data(), static_cast<int>(Path.size()));
 
-	bool exists = osal_path_existsW(Path.data());
+	WIN32_FIND_DATA	FindData;
+	HANDLE hFindFile = FindFirstFile(Path.c_str(), &FindData);
+	bool exists = (hFindFile != INVALID_HANDLE_VALUE);
 
-	if (!exists) {
-		if (osal_mkdirp(Path.data()) != 0) {
-			switch (EditCtrl) {
-				case IDC_TEX_PACK_PATH_EDIT:
-					MessageBox(L"Failed to create the texture pack folder. Please change the folder or turn off texture packs.", L"GLideN64", MB_OK | MB_ICONWARNING);
-					return;
-				case IDC_TEX_CACHE_PATH_EDIT:
-					MessageBox(L"Failed to create the texture pack cache folder. Please change the folder or turn off texture packs.", L"GLideN64", MB_OK | MB_ICONWARNING);
-					return;
-				case IDC_TEX_DUMP_PATH_EDIT:
-					MessageBox(L"Failed to create the texture dump folder. Please change the folder or turn off texture packs.", L"GLideN64", MB_OK | MB_ICONWARNING);
-					return;
-				default:
-					return;
-			}
-		}
-	}
-	wcscpy(txPath, Path.c_str());
+	if (hFindFile != NULL)
+		FindClose(hFindFile);
+
+	if (exists)
+		wcscpy(txPath, Path.c_str());
 }
 
 void CTextureEnhancementTab::SaveSettings()
@@ -245,6 +237,7 @@ void CTextureEnhancementTab::SaveSettings()
 	config.textureFilter.txHiresFullAlphaChannel = CButton(GetDlgItem(IDC_CHK_ALPHA_CHANNEL)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.textureFilter.txHresAltCRC = CButton(GetDlgItem(IDC_CHK_ALTERNATIVE_CRC)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.textureFilter.txHiresTextureFileStorage = CButton(GetDlgItem(IDC_CHK_HIRES_TEX_FILESTORAGE)).GetCheck() == BST_CHECKED ? 1 : 0;
+	config.textureFilter.txDump = CButton(GetDlgItem(IDC_CHK_TEXTURE_DUMP)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.textureFilter.txCacheSize = m_TextureFilterCacheSpin.GetPos() * gc_uMegabyte * 50;
 	config.textureFilter.txSaveCache = CButton(GetDlgItem(IDC_CHK_SAVE_TEXTURE_CACHE)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.textureFilter.txCacheCompression = CButton(GetDlgItem(IDC_CHK_COMPRESS_CACHE)).GetCheck() == BST_CHECKED ? 1 : 0;
@@ -302,4 +295,3 @@ int CALLBACK CTextureEnhancementTab::SelectDirCallBack(HWND hwnd, uint32_t uMsg,
 	}
 	return 0;
 }
-

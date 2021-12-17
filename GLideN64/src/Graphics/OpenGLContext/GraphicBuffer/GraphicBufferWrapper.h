@@ -28,7 +28,6 @@ public:
 	void release();
 	void unlock();
 	EGLClientBuffer getClientBuffer();
-	unsigned int getStride() const;
 
 private:
 
@@ -37,7 +36,6 @@ private:
 	bool m_private;
 	GraphicBuffer* m_privateGraphicBuffer;
 	AHardwareBuffer* m_publicGraphicBuffer;
-	unsigned int m_stride;
 
 };
 

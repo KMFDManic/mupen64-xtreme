@@ -146,7 +146,7 @@
     <ClCompile Include="..\..\src\windows\ZilmarAPIImpl_windows.cpp">
       <Filter>Source Files\windows</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\GLideNUI\Config_GLidenUI.cpp">
+    <ClCompile Include="..\..\src\windows\Config_windows.cpp">
       <Filter>Source Files\windows</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\mupenplus\Config_mupenplus.cpp">
@@ -156,6 +156,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\Config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Keys.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\FrameBufferInfo.cpp">
@@ -496,6 +499,9 @@
     <ClInclude Include="..\..\src\PostProcessor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\Keys.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\wst.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -659,6 +665,9 @@
       <Filter>Header Files\Graphics\OpenGL\windows</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\TexrectDrawer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\xxHash\xxh3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\xxHash\xxhash.h">

@@ -3,14 +3,11 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <fstream>
 #include <Platform.h>
 #include "../PluginAPI.h"
 #include "../RSP.h"
 
-#if defined(OS_WINDOWS)
-EXTERN_C IMAGE_DOS_HEADER __ImageBase;
-#elif defined(OS_MAC_OS_X)
+#if defined(OS_MAC_OS_X)
 #include <mach-o/dyld.h>
 #endif
 
@@ -25,7 +22,7 @@ int PluginAPI::InitiateGFX(const GFX_INFO & _gfxInfo)
 		gfx_info_version = _gfxInfo.version;
 	if (gfx_info_version >= 2) {
 		REG.SP_STATUS = _gfxInfo.SP_STATUS_REG;
-		rdram_size = *_gfxInfo.RDRAM_SIZE;
+		rdram_size = _gfxInfo.RDRAM_SIZE;
 	}
 
 	return TRUE;
@@ -71,35 +68,9 @@ void PluginAPI::FindPluginPath(wchar_t * _strPath)
 	if (_strPath == nullptr)
 		return;
 #ifdef OS_WINDOWS
-	GetModuleFileNameW((HINSTANCE)&__ImageBase, _strPath, PLUGIN_PATH_SIZE);
+	GetModuleFileNameW(nullptr, _strPath, PLUGIN_PATH_SIZE);
 	_cutLastPathSeparator(_strPath);
 #elif defined(OS_LINUX)
-	std::ifstream maps;
-	std::string line;
-	std::size_t loc;
-	maps.open("/proc/self/maps");
-
-	if (maps.is_open())
-	{
-		while (getline(maps, line))
-		{
-			loc = line.find('/');
-			if (loc == std::string::npos)
-				continue;
-
-			line = line.substr(loc);
-
-			if (line.find("GLideN64") != std::string::npos)
-			{
-				_getWSPath(line.c_str(), _strPath);
-				maps.close();
-				return;
-			}
-		}
-
-		maps.close();
-	}
-
 	char path[512];
 	int res = readlink("/proc/self/exe", path, 510);
 	if (res != -1) {

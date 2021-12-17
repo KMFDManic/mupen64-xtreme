@@ -20,7 +20,7 @@ inline void initMyResource() { Q_INIT_RESOURCE(icon); }
 inline void cleanMyResource() { Q_CLEANUP_RESOURCE(icon); }
 
 static
-int openConfigDialog(const wchar_t * _strFileName, const char * _romName, unsigned int _maxMSAALevel, bool & _accepted)
+int openConfigDialog(const wchar_t * _strFileName, const char * _romName, bool & _accepted)
 {
 	cleanMyResource();
 	initMyResource();
@@ -29,28 +29,21 @@ int openConfigDialog(const wchar_t * _strFileName, const char * _romName, unsign
 	if (config.generalEmulation.enableCustomSettings != 0 && _romName != nullptr && strlen(_romName) != 0)
 		loadCustomRomSettings(strIniFileName, _romName);
 
-	std::unique_ptr<QApplication> pQApp;
-	QCoreApplication* pApp = QCoreApplication::instance();
-
-	if (pApp == nullptr) {
-		int argc = 0;
-		char * argv = 0;
-		pQApp.reset(new QApplication(argc, &argv));
-		pApp = pQApp.get();
-	}
+	int argc = 0;
+	char * argv = 0;
+	QApplication a(argc, &argv);
 
 	QTranslator translator;
 	if (translator.load(getTranslationFile(), strIniFileName))
-		pApp->installTranslator(&translator);
+		a.installTranslator(&translator);
 
-	ConfigDialog w(Q_NULLPTR, Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint, _maxMSAALevel);
+	ConfigDialog w(Q_NULLPTR, Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint);
 
 	w.setIniPath(strIniFileName);
 	w.setRomName(_romName);
 	w.setTitle();
 	w.show();
-
-	int res = pQApp ? pQApp->exec() : w.exec();
+	const int res = a.exec();
 	_accepted = w.isAccepted();
 	return res;
 }
@@ -74,13 +67,13 @@ int openAboutDialog(const wchar_t * _strFileName)
 	return a.exec();
 }
 
-bool runConfigThread(const wchar_t * _strFileName, const char * _romName, unsigned int _maxMSAALevel) {
+bool runConfigThread(const wchar_t * _strFileName, const char * _romName) {
 	bool accepted = false;
 #ifdef RUN_DIALOG_IN_THREAD
-	std::thread configThread(openConfigDialog, _strFileName, _maxMSAALevel, std::ref(accepted));
+	std::thread configThread(openConfigDialog, _strFileName, std::ref(accepted));
 	configThread.join();
 #else
-	openConfigDialog(_strFileName, _romName, _maxMSAALevel, accepted);
+	openConfigDialog(_strFileName, _romName, accepted);
 #endif
 	return accepted;
 
@@ -96,9 +89,9 @@ int runAboutThread(const wchar_t * _strFileName) {
 	return 0;
 }
 
-EXPORT bool CALL RunConfig(const wchar_t * _strFileName, const char * _romName, unsigned int _maxMSAALevel)
+EXPORT bool CALL RunConfig(const wchar_t * _strFileName, const char * _romName)
 {
-	return runConfigThread(_strFileName, _romName, _maxMSAALevel);
+	return runConfigThread(_strFileName, _romName);
 }
 
 EXPORT int CALL RunAbout(const wchar_t * _strFileName)

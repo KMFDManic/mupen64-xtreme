@@ -18,27 +18,31 @@ std::wofstream fileOutput;
 
 std::wstring getFormattedTime()
 {
-	using namespace std::chrono;
+        using namespace std::chrono;
 
-	// get current time
-	auto now = system_clock::now();
+        // get current time
+        auto now = system_clock::now();
 
-	// get number of milliseconds for the current second
-	// (remainder after division into seconds)
-	auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+        // get number of milliseconds for the current second
+        // (remainder after division into seconds)
+        auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
 
-	// convert to std::time_t in order to convert to std::tm (broken time)
-	auto timer = system_clock::to_time_t(now);
+        // convert to std::time_t in order to convert to std::tm (broken time)
+        auto timer = system_clock::to_time_t(now);
 
-	// convert to broken time
-	std::tm bt = *std::localtime(&timer);
+        // convert to broken time
+        std::tm bt = *std::localtime(&timer);
 
-	std::wstringstream oss;
+        std::wstringstream oss;
 
-	oss << std::put_time(&bt, L"%Y/%m/%d,%H:%M:%S"); // HH:MM:SS
-	oss << L'.' << std::setfill(L'0') << std::setw(3) << ms.count();
+        char mbstr[100];
+        if (std::strftime(mbstr, sizeof(mbstr), "%Y/%m/%d,%H:%M:%S", &bt)) {
+                oss << mbstr;
+        }
 
-	return oss.str();
+        oss << L'.' << std::setfill(L'0') << std::setw(3) << ms.count();
+
+        return oss.str();
 }
 
 void LogDebug(const char* _fileName, int _line, u16 _type, const char* _format, ...) {

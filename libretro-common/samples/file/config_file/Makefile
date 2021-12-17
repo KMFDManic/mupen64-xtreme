@@ -15,8 +15,7 @@ SOURCES := \
 	$(LIBRETRO_COMM_DIR)/lists/string_list.c \
 	$(LIBRETRO_COMM_DIR)/string/stdstring.c \
 	$(LIBRETRO_COMM_DIR)/streams/file_stream.c \
-	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c \
-	$(LIBRETRO_COMM_DIR)/time/rtime.c
+	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
 
 OBJS := $(SOURCES:.c=.o)
 

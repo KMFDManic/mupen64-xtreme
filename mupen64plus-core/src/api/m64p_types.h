@@ -162,13 +162,7 @@ typedef enum {
   M64CMD_READ_SCREEN,
   M64CMD_RESET,
   M64CMD_ADVANCE_FRAME,
-  M64CMD_SET_MEDIA_LOADER,
-  M64CMD_NETPLAY_INIT,
-  M64CMD_NETPLAY_CONTROL_PLAYER,
-  M64CMD_NETPLAY_GET_VERSION,
-  M64CMD_NETPLAY_CLOSE,
-  M64CMD_PIF_OPEN,
-  M64CMD_ROM_SET_SETTINGS
+  M64CMD_SET_MEDIA_LOADER
 } m64p_command;
 
 typedef struct {
@@ -222,19 +216,6 @@ typedef enum
     SYSTEM_MPAL
 } m64p_system_type;
 
-typedef enum
-{
-    SAVETYPE_EEPROM_4K       = 0,
-    SAVETYPE_EEPROM_4KB      = 0, // Preserve inaccurate/misleading name
-    SAVETYPE_EEPROM_16K      = 1,
-    SAVETYPE_EEPROM_16KB     = 1, // Preserve inaccurate/misleading name
-    SAVETYPE_SRAM            = 2,
-    SAVETYPE_FLASH_RAM       = 3,
-    SAVETYPE_CONTROLLER_PAK  = 4,
-    SAVETYPE_CONTROLLER_PACK = 4, // Preserve inaccurate/off-brand name
-    SAVETYPE_NONE            = 5,
-} m64p_rom_save_type;
-
 typedef struct
 {
    uint8_t  init_PI_BSB_DOM1_LAT_REG;  /* 0x00 */
@@ -265,9 +246,6 @@ typedef struct
    unsigned char transferpak; /* 0 - No, 1 - Yes boolean for transfer pak support. */
    unsigned char mempak; /* 0 - No, 1 - Yes boolean for memory pak support. */
    unsigned char biopak; /* 0 - No, 1 - Yes boolean for bio pak support. */
-   unsigned char disableextramem; /* 0 - No, 1 - Yes boolean for disabling 4MB expansion RAM pack */
-   unsigned int countperop; /* Number of CPU cycles per instruction. */
-   unsigned int sidmaduration; /* Default SI DMA duration */
 } m64p_rom_settings;
 
 /* ----------------------------------------- */
@@ -418,9 +396,7 @@ typedef struct {
   m64p_error    (*VidExtFuncInit)(void);
   m64p_error    (*VidExtFuncQuit)(void);
   m64p_error    (*VidExtFuncListModes)(m64p_2d_size *, int *);
-  m64p_error    (*VidExtFuncListRates)(m64p_2d_size, int *, int *);
   m64p_error    (*VidExtFuncSetMode)(int, int, int, int, int);
-  m64p_error    (*VidExtFuncSetModeWithRate)(int, int, int, int, int, int);
   m64p_function (*VidExtFuncGLGetProc)(const char*);
   m64p_error    (*VidExtFuncGLSetAttr)(m64p_GLattr, int);
   m64p_error    (*VidExtFuncGLGetAttr)(m64p_GLattr, int *);

@@ -31,7 +31,6 @@
 
 struct joybus_device_interface;
 struct r4300_core;
-struct si_controller;
 
 enum { PIF_ROM_SIZE = 0x7c0 };
 enum { PIF_RAM_SIZE = 0x40 };
@@ -53,19 +52,17 @@ size_t setup_pif_channel(struct pif_channel* channel, uint8_t* buf);
 
 struct pif
 {
-    uint8_t* base;
     uint8_t* ram;
     struct pif_channel channels[PIF_CHANNELS_COUNT];
 
     struct cic cic;
 
     struct r4300_core* r4300;
-    struct si_controller* si;
 };
 
-static osal_inline uint32_t pif_address(uint32_t address)
+static osal_inline uint32_t pif_ram_address(uint32_t address)
 {
-    return (address & 0xfffc);
+    return ((address & 0xfffc) - PIF_ROM_SIZE);
 }
 
 
@@ -74,8 +71,7 @@ void init_pif(struct pif* pif,
     void* jbds[PIF_CHANNELS_COUNT],
     const struct joybus_device_interface* ijbds[PIF_CHANNELS_COUNT],
     const uint8_t* ipl3,
-    struct r4300_core* r4300,
-    struct si_controller* si);
+    struct r4300_core* r4300);
 
 void poweron_pif(struct pif* pif);
 
@@ -83,8 +79,8 @@ void reset_pif(struct pif* pif, unsigned int reset_type);
 
 void setup_channels_format(struct pif* pif);
 
-void read_pif_mem(void* opaque, uint32_t address, uint32_t* value);
-void write_pif_mem(void* opaque, uint32_t address, uint32_t value, uint32_t mask);
+void read_pif_ram(void* opaque, uint32_t address, uint32_t* value);
+void write_pif_ram(void* opaque, uint32_t address, uint32_t value, uint32_t mask);
 
 void process_pif_ram(struct pif* pif);
 void update_pif_ram(struct pif* pif);

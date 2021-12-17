@@ -24,12 +24,10 @@ namespace graphics {
 		ImageTextures,
 		IntegerTextures,
 		ClipControl,
-		N64DepthWithFbFetchDepth,
-		FramebufferFetchColor,
+		FramebufferFetch,
 		TextureBarrier,
 		EglImage,
-		EglImageFramebuffer,
-		DualSourceBlending
+		EglImageFramebuffer
 	};
 
 	enum class ClampMode {
@@ -70,8 +68,6 @@ namespace graphics {
 		void setScissor(s32 _x, s32 _y, s32 _width, s32 _height);
 
 		void setBlending(BlendParam _sfactor, BlendParam _dfactor);
-
-		void setBlendingSeparate(BlendParam _sfactorcolor, BlendParam _dfactorcolor, BlendParam _sfactoralpha, BlendParam _dfactoralpha);
 
 		void setBlendColor(f32 _red, f32 _green, f32 _blue, f32 _alpha);
 
@@ -247,6 +243,8 @@ namespace graphics {
 
 		ShaderProgram * createGammaCorrectionShader();
 
+		ShaderProgram * createOrientationCorrectionShader();
+
 		ShaderProgram * createFXAAShader();
 
 		TextDrawerShaderProgram * createTextDrawerShader();
@@ -285,7 +283,6 @@ namespace graphics {
 		f32 getMaxLineWidth();
 
 		/*---------------Misc-------------*/
-		s32 getMaxMSAALevel();
 
 		bool isError() const;
 
@@ -299,12 +296,10 @@ namespace graphics {
 		static bool ImageTextures;
 		static bool IntegerTextures;
 		static bool ClipControl;
-		static bool FramebufferFetchDepth;
-		static bool FramebufferFetchColor;
+		static bool FramebufferFetch;
 		static bool TextureBarrier;
 		static bool EglImage;
 		static bool EglImageFramebuffer;
-		static bool DualSourceBlending;
 
 	private:
 		std::unique_ptr<ContextImpl> m_impl;

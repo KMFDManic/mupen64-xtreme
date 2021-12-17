@@ -68,10 +68,10 @@ namespace glsl {
 				;
 
 			if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
-				if (_glinfo.imageTextures && !_glinfo.n64DepthWithFbFetch)
+				if (_glinfo.imageTextures)
 					m_part += "layout(binding = 2, r32f) highp uniform restrict readonly image2D uDepthImageZ;		\n";
 
-				if (_glinfo.n64DepthWithFbFetch) {
+				if (_glinfo.ext_fetch) {
 					m_part +=
 						"layout(location = 0) OUT lowp vec4 fragColor;	\n"
 						"layout(location = 1) inout highp vec4 depthZ;	\n"
@@ -100,14 +100,14 @@ namespace glsl {
 			} else {
 				// Either _glinfo.imageTextures or _glinfo.ext_fetch must be enabled when N64DepthCompare != 0
 				// see GLInfo::init()
-				if (_glinfo.n64DepthWithFbFetch) {
-					m_part +=
-						"  highp float bufZ = depthZ.r;	\n"
-						;
-				} else if (_glinfo.imageTextures) {
+				if (_glinfo.imageTextures) {
 					m_part +=
 						"  mediump ivec2 coord = ivec2(gl_FragCoord.xy);	\n"
 						"  highp float bufZ = imageLoad(uDepthImageZ,coord).r;	\n"
+						;
+				} else if (_glinfo.ext_fetch) {
+					m_part +=
+						"  highp float bufZ = depthZ.r;	\n"
 						;
 				}
 			}
@@ -148,9 +148,6 @@ namespace glsl {
 					"#else																											\n"
 					"# define IN varying																							\n"
 					"# define OUT																									\n"
-					"#ifndef GL_FRAGMENT_PRECISION_HIGH																				\n"
-					"# define highp mediump																							\n"
-					"#endif																											\n"
 					"#endif // __VERSION __																							\n"
 					"lowp vec4 uTestColor = vec4(4.0/255.0, 2.0/255.0, 1.0/255.0, 0.0);												\n"
 					"uniform lowp int uEnableAlphaTest;																				\n"
@@ -221,9 +218,6 @@ namespace glsl {
 					"#else																											\n"
 					"# define IN varying																							\n"
 					"# define OUT																									\n"
-					"#ifndef GL_FRAGMENT_PRECISION_HIGH																				\n"
-					"# define highp mediump																							\n"
-					"#endif																											\n"
 					"#endif // __VERSION __																							\n"
 					"lowp vec4 uTestColor = vec4(4.0/255.0, 2.0/255.0, 1.0/255.0, 0.0);												\n"
 					"uniform lowp int uEnableAlphaTest;																				\n"
@@ -319,7 +313,8 @@ namespace glsl {
 					"{																			\n"
 					"  TEX_FILTER(fragColor, uTex0, vTexCoord0);								\n"
 					;
-				if (config.generalEmulation.enableFragmentDepthWrite != 0 &&
+				if (!_glinfo.isGLES2 &&
+					config.generalEmulation.enableFragmentDepthWrite != 0 &&
 					config.frameBufferEmulation.N64DepthCompare == Config::dcDisable) {
 					m_part +=
 						"  gl_FragDepth = uPrimDepth;											\n"
@@ -366,48 +361,48 @@ namespace glsl {
 		static std::string strFilter =
 			"uniform sampler2D uTex0;                                                         \n"
 			"                                                                                 \n"
-			"ivec2 get_texture_size()                                                         \n"
+			"ivec2 get_texture_size(sampler2D tex)                                            \n"
 			"{                                                                                \n"
-			"    return textureSize(uTex0, 0);                                                \n"
+			"    return textureSize(tex, 0);                                                  \n"
 			"}                                                                                \n"
 			"                                                                                 \n"
-			"mediump vec2 norm2denorm(mediump vec2 uv)                                        \n"
+			"mediump vec2 norm2denorm(sampler2D tex, mediump vec2 uv)                         \n"
 			"{                                                                                \n"
-			"    return uv * vec2(get_texture_size()) - 0.5;                                  \n"
+			"    return uv * vec2(get_texture_size(tex)) - 0.5;                               \n"
 			"}                                                                                \n"
 			"                                                                                 \n"
-			"mediump vec2 denorm2norm(mediump vec2 denorm_uv)                                 \n"
+			"mediump vec2 denorm2norm(sampler2D tex, mediump vec2 denorm_uv)                  \n"
 			"{                                                                                \n"
-			"    return (denorm_uv + 0.5) / vec2(get_texture_size());                         \n"
+			"    return (denorm_uv + 0.5) / vec2(get_texture_size(tex));                      \n"
 			"}                                                                                \n"
 			"                                                                                 \n"
-			"mediump vec4 hybridFilter(mediump vec2 uv)                                       \n"
+			"mediump vec4 hybridFilter(sampler2D tex, mediump vec2 uv)                        \n"
 			"{                                                                                \n"
-			"    mediump vec2 denorm_uv = norm2denorm(uv);                                    \n"
+			"    mediump vec2 denorm_uv = norm2denorm(tex, uv);                               \n"
 			"    mediump vec2 low_corner = floor(denorm_uv);                                  \n"
 			"    mediump vec2 ratio = denorm_uv - low_corner;                                 \n"
 			"                                                                                 \n"
-				/*
-				* 'radius' is the distance from the edge where interpolation happens.
-				* It's calculated based on  how big a fragment is in denormalized
-				* texture coordinates.
-				*
-				* E.g.: If a texel maps to 5 fragments, then each fragment is
-				* 1/5 texels big. So the smooth transition should be between one and
-				* two fragments big, since there are enough fragments to show the full
-				* color of the texel.
-				*
-				* If a fragment is larger than one texel, we don't care, we're already
-				* sampling the wrong texels, and should be using mipmaps instead.
-				*/
-
-				// Here, fwidth() is used to estimte how much denorm_uv changes per fragment.
-				// But we divide it by 2, since fwidth() is adding abs(dx) + abs(dy).
+			"    /*                                                                           \n"
+			"     * 'radius' is the distance from the edge where interpolation happens.       \n"
+			"     * It's calculated based on  how big a fragment is in denormalized           \n"
+			"     * texture coordinates.                                                      \n"
+			"     *                                                                           \n"
+			"     * E.g.: If a texel maps to 5 fragments, then each fragment is               \n"
+			"     * 1/5 texels big. So the smooth transition should be between one and        \n"
+			"     * two fragments big, since there are enough fragments to show the full      \n"
+			"     * color of the texel.                                                       \n"
+			"     *                                                                           \n"
+			"     * If a fragment is larger than one texel, we don't care, we're already      \n"
+			"     * sampling the wrong texels, and should be using mipmaps instead.           \n"
+			"     */                                                                          \n"
+			"                                                                                 \n"
+			"    // Here, fwidth() is used to estimte how much denorm_uv changes per fragment.\n"
+			"    // But we divide it by 2, since fwidth() is adding abs(dx) + abs(dy).        \n"
 			"    mediump vec2 fragment_size  = fwidth(denorm_uv) / 2.0;                       \n"
 			"                                                                                 \n"
 			"    mediump float is_frag_gt1, radius;                                           \n"
-				// Do nothing if fragment is greater than 1 texel
-				// Don't make the transition more than one fragment (+/- 0.5 fragment)
+			"    // Do nothing if fragment is greater than 1 texel                            \n"
+			"    // Don't make the transition more than one fragment (+/- 0.5 fragment)       \n"
 			"    is_frag_gt1 = step(1.0, fragment_size.s);                                    \n"
 			"    radius = min(fragment_size.s, 0.5);                                          \n"
 			"    ratio.s = ratio.s * is_frag_gt1 + smoothstep(0.5 - radius,                   \n"
@@ -417,10 +412,10 @@ namespace glsl {
 			"    ratio.t = ratio.t * is_frag_gt1 + smoothstep(0.5 - radius,                   \n"
 			"        0.5 + radius,	ratio.t) * (1.0 - is_frag_gt1);                           \n"
 			"                                                                                 \n"
-				// now bump the coord to the texel using ratio
+			"    // now bump the coord to the texel using ratio                               \n"
 			"    mediump vec2 new_denorm_uv = low_corner + ratio;                             \n"
-			"    mediump vec2 new_uv = denorm2norm(new_denorm_uv);                            \n"
-			"    return texture2D(uTex0, new_uv);                                             \n"
+			"    mediump vec2 new_uv = denorm2norm(tex, new_denorm_uv);                       \n"
+			"    return texture2D(tex, new_uv);                                               \n"
 			"}                                                                                \n"
 			;
 		return strFilter;
@@ -441,7 +436,7 @@ namespace glsl {
 					"													\n"
 					"void main()										\n"
 					"{													\n"
-					"	fragColor = hybridFilter(vTexCoord0);	        \n"
+					"	fragColor = hybridFilter(uTex0, vTexCoord0);	\n"
 					;
 			} else {
 				m_part =
@@ -490,7 +485,7 @@ namespace glsl {
 					"													\n"
 					"void main()										\n"
 					"{													\n"
-					"	fragColor = hybridFilter(vTexCoord0);	        \n"
+					"	fragColor = hybridFilter(uTex0, vTexCoord0);	\n"
 					"	gl_FragDepth = texture2D(uTex1, vTexCoord0).r;	\n"
 					;
 			} else {
@@ -545,6 +540,22 @@ namespace glsl {
 				"    fragColor = texture2D(uTex0, vTexCoord0);								\n"
 				"    fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / uGammaCorrectionLevel));	\n"
 				;
+		}
+	};
+
+	class OrientationCorrection : public ShaderPart
+	{
+	public:
+		OrientationCorrection(const opengl::GLInfo & _glinfo)
+		{
+			m_part =
+				"IN mediump vec2 vTexCoord0;													\n"
+				"uniform sampler2D uTex0;													\n"
+				"OUT lowp vec4 fragColor;													\n"
+				"void main()																\n"
+				"{																			\n"
+				"    fragColor = texture2D(uTex0, vec2(1.0 - vTexCoord0.x, 1.0 - vTexCoord0.y));       \n"
+			;
 		}
 	};
 
@@ -893,6 +904,25 @@ namespace glsl {
 		}
 	};
 
+	typedef SpecialShader<VertexShaderTexturedRect, OrientationCorrection> OrientationCorrectionShaderBase;
+
+	class OrientationCorrectionShader : public OrientationCorrectionShaderBase
+	{
+	public:
+		OrientationCorrectionShader(const opengl::GLInfo & _glinfo,
+			opengl::CachedUseProgram * _useProgram,
+			const ShaderPart * _vertexHeader,
+			const ShaderPart * _fragmentHeader,
+			const ShaderPart * _fragmentEnd)
+			: OrientationCorrectionShaderBase(_glinfo, _useProgram, _vertexHeader, _fragmentHeader, _fragmentEnd)
+		{
+			m_useProgram->useProgram(m_program);
+			const int texLoc = glGetUniformLocation(GLuint(m_program), "uTex0");
+			glUniform1i(texLoc, 0);
+			m_useProgram->useProgram(graphics::ObjectHandle::null);
+		}
+	};
+
 	/*---------------TexrectDrawerShader-------------*/
 
 	typedef SpecialShader<VertexShaderTexturedRect, TextDraw, graphics::TextDrawerShaderProgram> TextDrawerShaderBase;
@@ -987,6 +1017,11 @@ namespace glsl {
 	graphics::ShaderProgram * SpecialShadersFactory::createGammaCorrectionShader() const
 	{
 		return new GammaCorrectionShader(m_glinfo, m_useProgram, m_vertexHeader, m_fragmentHeader, m_fragmentEnd);
+	}
+
+	graphics::ShaderProgram * SpecialShadersFactory::createOrientationCorrectionShader() const
+	{
+		return new OrientationCorrectionShader(m_glinfo, m_useProgram, m_vertexHeader, m_fragmentHeader, m_fragmentEnd);
 	}
 
 	graphics::ShaderProgram * SpecialShadersFactory::createFXAAShader() const

@@ -27,7 +27,6 @@ void _loadSettings(QSettings & settings)
 	config.video.windowedHeight = settings.value("windowedHeight", config.video.windowedHeight).toInt();
 	config.video.fullscreenRefresh = settings.value("fullscreenRefresh", config.video.fullscreenRefresh).toInt();
 	config.video.multisampling = settings.value("multisampling", config.video.multisampling).toInt();
-	config.video.maxMultiSampling = settings.value("maxMultiSampling", config.video.maxMultiSampling).toInt();
 	config.video.fxaa= settings.value("fxaa", config.video.fxaa).toInt();
 	config.video.verticalSync = settings.value("verticalSync", config.video.verticalSync).toInt();
 	config.video.threadedVideo = settings.value("threadedVideo", config.video.threadedVideo).toInt();
@@ -47,11 +46,7 @@ void _loadSettings(QSettings & settings)
 	config.generalEmulation.rdramImageDitheringMode = settings.value("rdramImageDitheringMode", config.generalEmulation.rdramImageDitheringMode).toInt();
 	config.generalEmulation.enableLOD = settings.value("enableLOD", config.generalEmulation.enableLOD).toInt();
 	config.generalEmulation.enableHWLighting = settings.value("enableHWLighting", config.generalEmulation.enableHWLighting).toInt();
-	config.generalEmulation.enableCoverage = settings.value("enableCoverage", config.generalEmulation.enableCoverage).toInt();
 	config.generalEmulation.enableShadersStorage = settings.value("enableShadersStorage", config.generalEmulation.enableShadersStorage).toInt();
-	config.generalEmulation.enableLegacyBlending = settings.value("enableLegacyBlending", config.generalEmulation.enableLegacyBlending).toInt();			 //ini only
-	config.generalEmulation.enableHybridFilter = settings.value("enableHybridFilter", config.generalEmulation.enableHybridFilter).toInt();					 //ini only
-	config.generalEmulation.enableFragmentDepthWrite = settings.value("enableFragmentDepthWrite", config.generalEmulation.enableFragmentDepthWrite).toInt(); //ini only
 	config.generalEmulation.enableCustomSettings = settings.value("enableCustomSettings", config.generalEmulation.enableCustomSettings).toInt();
 	settings.endGroup();
 
@@ -59,7 +54,6 @@ void _loadSettings(QSettings & settings)
 	config.graphics2D.correctTexrectCoords = settings.value("correctTexrectCoords", config.graphics2D.correctTexrectCoords).toInt();
 	config.graphics2D.enableNativeResTexrects = settings.value("enableNativeResTexrects", config.graphics2D.enableNativeResTexrects).toInt();
 	config.graphics2D.bgMode = settings.value("bgMode", config.graphics2D.bgMode).toInt();
-	config.graphics2D.enableTexCoordBounds = settings.value("enableTexCoordBounds", config.graphics2D.enableTexCoordBounds).toInt();
 	settings.endGroup();
 
 	settings.beginGroup("frameBufferEmulation");
@@ -97,6 +91,7 @@ void _loadSettings(QSettings & settings)
 	config.textureFilter.txHiresEnable = settings.value("txHiresEnable", config.textureFilter.txHiresEnable).toInt();
 	config.textureFilter.txHiresFullAlphaChannel = settings.value("txHiresFullAlphaChannel", config.textureFilter.txHiresFullAlphaChannel).toInt();
 	config.textureFilter.txHresAltCRC = settings.value("txHresAltCRC", config.textureFilter.txHresAltCRC).toInt();
+	config.textureFilter.txDump = settings.value("txDump", config.textureFilter.txDump).toInt();
 	config.textureFilter.txForce16bpp = settings.value("txForce16bpp", config.textureFilter.txForce16bpp).toInt();
 	config.textureFilter.txCacheCompression = settings.value("txCacheCompression", config.textureFilter.txCacheCompression).toInt();
 	config.textureFilter.txSaveCache = settings.value("txSaveCache", config.textureFilter.txSaveCache).toInt();
@@ -136,14 +131,7 @@ void _loadSettings(QSettings & settings)
 	config.onScreenDisplay.percent = settings.value("showPercent", config.onScreenDisplay.percent).toInt();
 	config.onScreenDisplay.internalResolution = settings.value("showInternalResolution", config.onScreenDisplay.internalResolution).toInt();
 	config.onScreenDisplay.renderingResolution = settings.value("showRenderingResolution", config.onScreenDisplay.renderingResolution).toInt();
-	config.onScreenDisplay.statistics = settings.value("showStatistics", config.onScreenDisplay.statistics).toInt();
 	config.onScreenDisplay.pos = settings.value("osdPos", config.onScreenDisplay.pos).toInt();
-	settings.endGroup();
-
-	settings.beginGroup("hotkeys");
-	for (u32 idx = 0; idx < Config::HotKey::hkTotal; ++idx) {
-		config.hotkeys.keys[idx] = settings.value(Config::hotkeyIniName(idx), config.hotkeys.keys[idx]).toInt();
-	}
 	settings.endGroup();
 
 	settings.beginGroup("debug");
@@ -172,16 +160,17 @@ void loadSettings(const QString & _strIniFolder)
 			settings.beginGroup(strUserProfile);
 			writeSettings(_strIniFolder);
 			settings.endGroup();
+		} else {
+			QString profile = settings.value("profile", strUserProfile).toString();
+			if (settings.childGroups().indexOf(profile) >= 0) {
+				settings.beginGroup(profile);
+				_loadSettings(settings);
+				settings.endGroup();
+			} else
+				rewriteSettings = true;
+			if (config.version != CONFIG_VERSION_CURRENT)
+				rewriteSettings = true;
 		}
-		QString profile = settings.value("profile", strUserProfile).toString();
-		if (settings.childGroups().indexOf(profile) >= 0) {
-			settings.beginGroup(profile);
-			_loadSettings(settings);
-			settings.endGroup();
-		} else
-			rewriteSettings = true;
-		if (config.version != CONFIG_VERSION_CURRENT)
-			rewriteSettings = true;
 	}
 	if (rewriteSettings) {
 		// Keep settings up-to-date
@@ -213,7 +202,6 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("windowedHeight", config.video.windowedHeight);
 	settings.setValue("fullscreenRefresh", config.video.fullscreenRefresh);
 	settings.setValue("multisampling", config.video.multisampling);
-	settings.setValue("maxMultiSampling", config.video.maxMultiSampling);
 	settings.setValue("fxaa", config.video.fxaa);
 	settings.setValue("verticalSync", config.video.verticalSync);
 	settings.setValue("threadedVideo", config.video.threadedVideo);
@@ -233,11 +221,7 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("rdramImageDitheringMode", config.generalEmulation.rdramImageDitheringMode);
 	settings.setValue("enableLOD", config.generalEmulation.enableLOD);
 	settings.setValue("enableHWLighting", config.generalEmulation.enableHWLighting);
-	settings.setValue("enableCoverage", config.generalEmulation.enableCoverage);
 	settings.setValue("enableShadersStorage", config.generalEmulation.enableShadersStorage);
-	settings.setValue("enableLegacyBlending", config.generalEmulation.enableLegacyBlending);		 //ini only
-	settings.setValue("enableHybridFilter", config.generalEmulation.enableHybridFilter);			 //ini only
-	settings.setValue("enableFragmentDepthWrite", config.generalEmulation.enableFragmentDepthWrite); //ini only
 	settings.setValue("enableCustomSettings", config.generalEmulation.enableCustomSettings);
 	settings.endGroup();
 
@@ -245,7 +229,6 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("correctTexrectCoords", config.graphics2D.correctTexrectCoords);
 	settings.setValue("enableNativeResTexrects", config.graphics2D.enableNativeResTexrects);
 	settings.setValue("bgMode", config.graphics2D.bgMode);
-	settings.setValue("enableTexCoordBounds", config.graphics2D.enableTexCoordBounds);
 	settings.endGroup();
 
 	settings.beginGroup("frameBufferEmulation");
@@ -283,6 +266,7 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("txHiresEnable", config.textureFilter.txHiresEnable);
 	settings.setValue("txHiresFullAlphaChannel", config.textureFilter.txHiresFullAlphaChannel);
 	settings.setValue("txHresAltCRC", config.textureFilter.txHresAltCRC);
+	settings.setValue("txDump", config.textureFilter.txDump);
 	settings.setValue("txForce16bpp", config.textureFilter.txForce16bpp);
 	settings.setValue("txCacheCompression", config.textureFilter.txCacheCompression);
 	settings.setValue("txSaveCache", config.textureFilter.txSaveCache);
@@ -310,14 +294,7 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("showPercent", config.onScreenDisplay.percent);
 	settings.setValue("showInternalResolution", config.onScreenDisplay.internalResolution);
 	settings.setValue("showRenderingResolution", config.onScreenDisplay.renderingResolution);
-	settings.setValue("showStatistics", config.onScreenDisplay.statistics);
 	settings.setValue("osdPos", config.onScreenDisplay.pos);
-	settings.endGroup();
-
-	settings.beginGroup("hotkeys");
-	for (u32 idx = 0; idx < Config::HotKey::hkTotal; ++idx) {
-		settings.setValue(Config::hotkeyIniName(idx), config.hotkeys.keys[idx]);
-	}
 	settings.endGroup();
 
 	settings.beginGroup("debug");
@@ -404,8 +381,8 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 		origConfig.G.S != settings.value(#S, config.G.S).toFloat()) \
 		settings.setValue(#S, config.G.S)
 #define WriteCustomSettingS(S) \
-	const QString new##S = QString::fromWCharArray(config.textureFilter.S); \
-	const QString orig##S = QString::fromWCharArray(origConfig.textureFilter.S); \
+	const QString new##S = QString::fromWCharArray(config.textureFilter.txPath); \
+	const QString orig##S = QString::fromWCharArray(origConfig.textureFilter.txPath); \
 	if (orig##S  != new##S || \
 		orig##S != settings.value(#S, new##S).toString()) \
 		settings.setValue(#S, new##S)
@@ -437,7 +414,6 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 	WriteCustomSetting(generalEmulation, rdramImageDitheringMode);
 	WriteCustomSetting(generalEmulation, enableLOD);
 	WriteCustomSetting(generalEmulation, enableHWLighting);
-	WriteCustomSetting(generalEmulation, enableCoverage);
 	WriteCustomSetting(generalEmulation, enableShadersStorage);
 	settings.endGroup();
 
@@ -445,7 +421,6 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 	WriteCustomSetting(graphics2D, correctTexrectCoords);
 	WriteCustomSetting(graphics2D, enableNativeResTexrects);
 	WriteCustomSetting(graphics2D, bgMode);
-	WriteCustomSetting(graphics2D, enableTexCoordBounds);
 	settings.endGroup();
 
 	settings.beginGroup("frameBufferEmulation");
@@ -485,6 +460,7 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 	WriteCustomSetting(textureFilter, txHiresEnable);
 	WriteCustomSetting(textureFilter, txHiresFullAlphaChannel);
 	WriteCustomSetting(textureFilter, txHresAltCRC);
+	WriteCustomSetting(textureFilter, txDump);
 	WriteCustomSetting(textureFilter, txForce16bpp);
 	WriteCustomSetting(textureFilter, txCacheCompression);
 	WriteCustomSetting(textureFilter, txSaveCache);

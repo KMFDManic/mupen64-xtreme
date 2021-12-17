@@ -41,7 +41,6 @@ public:
 	void operator=(const CommandPool &) = delete;
 
 	void begin();
-	void trim();
 	VkCommandBuffer request_command_buffer();
 	VkCommandBuffer request_secondary_command_buffer();
 	void signal_submitted(VkCommandBuffer cmd);

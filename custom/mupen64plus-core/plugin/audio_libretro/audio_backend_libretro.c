@@ -90,7 +90,7 @@ void init_audio_libretro(unsigned max_audio_frames)
    convert_float_to_s16_init_simd();
 }
 
-static void aiDacrateChanged(void *user_data, unsigned int frequency)
+static void aiDacrateChanged(void *user_data, unsigned int frequency, unsigned int bits)
 {
    GameFreq        = frequency;
    BytesPerSecond  = frequency * 4;
@@ -106,7 +106,7 @@ static void aiDacrateChanged(void *user_data, unsigned int frequency)
  * We assume bits == 16 (assumption compatible with audio-sdl plugin implementation)
  */
 void set_audio_format_via_libretro(void* user_data,
-      unsigned int frequency)
+      unsigned int frequency, unsigned int bits)
 {
    struct ai_controller* ai = (struct ai_controller*)user_data;
    uint32_t saved_ai_dacrate = ai->regs[AI_DACRATE_REG];
@@ -114,7 +114,7 @@ void set_audio_format_via_libretro(void* user_data,
    /* notify plugin of the new frequency (can't do the same for bits) */
    ai->regs[AI_DACRATE_REG] = ai->vi->clock / frequency - 1;
 
-   aiDacrateChanged(user_data, frequency);
+   aiDacrateChanged(user_data, frequency, bits);
 
    /* restore original registers values */
    ai->regs[AI_DACRATE_REG] = saved_ai_dacrate;

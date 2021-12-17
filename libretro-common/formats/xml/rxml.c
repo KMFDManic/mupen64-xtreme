@@ -31,11 +31,10 @@
 
 #define BUFSIZE 4096
 
-struct rxml_parse_buffer
-{
-   rxml_node_t *stack[32];
+struct rxml_parse_buffer {
    char xml[BUFSIZE];
    char val[BUFSIZE];
+   rxml_node_t* stack[32];
 };
 
 struct rxml_document
@@ -90,28 +89,28 @@ static void rxml_free_node(struct rxml_node *node)
 
 rxml_document_t *rxml_load_document(const char *path)
 {
-   rxml_document_t *doc    = NULL;
+   rxml_document_t *doc;
    char *memory_buffer     = NULL;
-   int64_t len             = 0;
+   long len                = 0;
    RFILE *file             = filestream_open(path,
          RETRO_VFS_FILE_ACCESS_READ,
          RETRO_VFS_FILE_ACCESS_HINT_NONE);
    if (!file)
       return NULL;
 
-   len                     = filestream_get_size(file);
-   memory_buffer           = (char*)malloc((size_t)(len + 1));
+   len           = filestream_get_size(file);
+   memory_buffer = (char*)malloc(len + 1);
    if (!memory_buffer)
       goto error;
 
-   memory_buffer[len]      = '\0';
+   memory_buffer[len] = '\0';
    if (filestream_read(file, memory_buffer, len) != (size_t)len)
       goto error;
 
    filestream_close(file);
-   file                    = NULL;
+   file = NULL;
 
-   doc                     = rxml_load_document_string(memory_buffer);
+   doc = rxml_load_document_string(memory_buffer);
 
    free(memory_buffer);
    return doc;
@@ -125,165 +124,139 @@ error:
 
 rxml_document_t *rxml_load_document_string(const char *str)
 {
-   yxml_t x;
    rxml_document_t *doc          = NULL;
+   struct rxml_parse_buffer *buf = NULL;
    size_t stack_i                = 0;
    size_t level                  = 0;
    int c                         = 0;
    char *valptr                  = NULL;
+   yxml_t x;
+
    rxml_node_t *node             = NULL;
    struct rxml_attrib_node *attr = NULL;
-   struct rxml_parse_buffer *buf = (struct rxml_parse_buffer*)
-      malloc(sizeof(*buf));
-   if (!buf)
-      return NULL;
 
-   valptr                        = buf->val;
-   doc                           = (rxml_document_t*)malloc(sizeof(*doc));
+   buf = (struct rxml_parse_buffer*)malloc(sizeof(*buf));
+   if (!buf)
+      goto error;
+
+   valptr = buf->val;
+
+   doc = (rxml_document_t*)calloc(1, sizeof(*doc));
    if (!doc)
       goto error;
 
    yxml_init(&x, buf->xml, BUFSIZE);
 
-   for (; *str; ++str)
-   {
+   for (; *str; ++str) {
       yxml_ret_t r = yxml_parse(&x, *str);
 
       if (r < 0)
          goto error;
 
-      switch (r)
-      {
+      switch (r) {
 
-         case YXML_ELEMSTART:
-            if (node)
-            {
-               if (level > stack_i)
-               {
-                  buf->stack[stack_i]      = node;
-                  ++stack_i;
+      case YXML_ELEMSTART:
+         if (node) {
 
-                  node->children           = (rxml_node_t*)
-                     malloc(sizeof(*node));
+            if (level > stack_i) {
+               buf->stack[stack_i] = node;
+               ++stack_i;
 
-                  node->children->name     = NULL;
-                  node->children->data     = NULL;
-                  node->children->attrib   = NULL;
-                  node->children->children = NULL;
-                  node->children->next     = NULL;
-
-                  node                     = node->children;
-               }
-               else
-               {
-                  node->next               = (rxml_node_t*)
-                     malloc(sizeof(*node));
-
-                  node->next->name         = NULL;
-                  node->next->data         = NULL;
-                  node->next->attrib       = NULL;
-                  node->next->children     = NULL;
-                  node->next->next         = NULL;
-
-                  node                     = node->next;
-               }
+               node->children = (rxml_node_t*)calloc(1, sizeof(*node));
+               node = node->children;
             }
-            else
-               node = doc->root_node       = (rxml_node_t*)
-                  calloc(1, sizeof(*node));
+            else {
+               node->next = (rxml_node_t*)calloc(1, sizeof(*node));
+               node = node->next;
+            }
+         }
+         else {
+            node = doc->root_node = (rxml_node_t*)calloc(1, sizeof(*node));
+         }
 
-            if (node->name)
-               free(node->name);
-            node->name                     = strdup(x.elem);
+         if (node->name)
+            free(node->name);
+         node->name = strdup(x.elem);
 
-            attr                           = NULL;
+         attr = NULL;
 
-            ++level;
-            break;
+         ++level;
+         break;
 
-         case YXML_ELEMEND:
-            --level;
+      case YXML_ELEMEND:
+         --level;
 
-            if (valptr > buf->val)
+         if (valptr > buf->val) {
+            *valptr = '\0';
+
+            /* Original code was broken here:
+             * > If an element ended on two successive
+             *   iterations, on the second iteration
+             *   the 'data' for the *previous* node would
+             *   get overwritten
+             * > This effectively erased the data for the
+             *   previous node, *and* caused a memory leak
+             *   (due to the double strdup())
+             * It seems the correct thing to do here is
+             * only copy the data if the current 'level'
+             * and 'stack index' are the same... */
+            if (level == stack_i)
             {
-               *valptr = '\0';
-
-               /* Original code was broken here:
-                * > If an element ended on two successive
-                *   iterations, on the second iteration
-                *   the 'data' for the *previous* node would
-                *   get overwritten
-                * > This effectively erased the data for the
-                *   previous node, *and* caused a memory leak
-                *   (due to the double strdup())
-                * It seems the correct thing to do here is
-                * only copy the data if the current 'level'
-                * and 'stack index' are the same... */
-               if (level == stack_i)
-               {
-                  if (node->data)
-                     free(node->data);
-                  node->data = strdup(buf->val);
-               }
-
-               valptr = buf->val;
+               if (node->data)
+                  free(node->data);
+               node->data = strdup(buf->val);
             }
 
-            if (level < stack_i)
-            {
-               --stack_i;
-               node = buf->stack[stack_i];
-            }
-            break;
+            valptr = buf->val;
+         }
 
-         case YXML_CONTENT:
-            for (c = 0; c < sizeof(x.data) && x.data[c]; ++c)
-            {
-               *valptr = x.data[c];
-               ++valptr;
-            }
-            break;
+         if (level < stack_i) {
+            --stack_i;
+            node = buf->stack[stack_i];
+         }
+         break;
 
-         case YXML_ATTRSTART:
-            if (attr)
-               attr = attr->next   = (struct rxml_attrib_node*)
-                     calloc(1, sizeof(*attr));
-            else
-               attr = node->attrib = (struct rxml_attrib_node*)calloc(1, sizeof(*attr));
+      case YXML_CONTENT:
+         for (c = 0; c < sizeof(x.data) && x.data[c]; ++c) {
+            *valptr = x.data[c];
+            ++valptr;
+         }
+         break;
 
-            if (attr->attrib)
-               free(attr->attrib);
-            attr->attrib = strdup(x.attr);
+      case YXML_ATTRSTART:
+         if (attr)
+            attr = attr->next = (struct rxml_attrib_node*)calloc(1, sizeof(*attr));
+         else
+            attr = node->attrib = (struct rxml_attrib_node*)calloc(1, sizeof(*attr));
 
-            valptr       = buf->val;
-            break;
+         if (attr->attrib)
+            free(attr->attrib);
+         attr->attrib = strdup(x.attr);
 
-         case YXML_ATTRVAL:
-            for (c = 0; c < sizeof(x.data) && x.data[c]; ++c)
-            {
-               *valptr = x.data[c];
-               ++valptr;
-            }
-            break;
+         valptr = buf->val;
+         break;
 
-         case YXML_ATTREND:
-            if (valptr > buf->val)
-            {
-               *valptr = '\0';
+      case YXML_ATTRVAL:
+         for(c = 0; c < sizeof(x.data) && x.data[c]; ++c) {
+            *valptr = x.data[c];
+            ++valptr;
+         }
+         break;
 
-               if (attr)
-               {
-                  if (attr->value)
-                     free(attr->value);
-                  attr->value = strdup(buf->val);
-               }
+      case YXML_ATTREND:
+         if (valptr > buf->val) {
+            *valptr = '\0';
 
-               valptr      = buf->val;
-            }
-            break;
+            if (attr->value)
+               free(attr->value);
+            attr->value = strdup(buf->val);
 
-         default:
-            break;
+            valptr = buf->val;
+         }
+         break;
+
+      default:
+         break;
       }
    }
 

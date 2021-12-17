@@ -22,7 +22,6 @@ namespace graphics {
 		virtual void setViewport(s32 _x, s32 _y, s32 _width, s32 _height) = 0;
 		virtual void setScissor(s32 _x, s32 _y, s32 _width, s32 _height) = 0;
 		virtual void setBlending(BlendParam _sfactor, BlendParam _dfactor) = 0;
-		virtual void setBlendingSeparate(BlendParam _sfactorcolor, BlendParam _dfactorcolor, BlendParam _sfactoralpha, BlendParam _dfactoralpha) = 0;
 		virtual void setBlendColor(f32 _red, f32 _green, f32 _blue, f32 _alpha) = 0;
 		virtual void clearColorBuffer(f32 _red, f32 _green, f32 _blue, f32 _alpha) = 0;
 		virtual void clearDepthBuffer() = 0;
@@ -63,6 +62,7 @@ namespace graphics {
 		virtual ShaderProgram * createTexrectDownscaleCopyShader() = 0;
 		virtual ShaderProgram * createTexrectColorAndDepthDownscaleCopyShader() = 0;
 		virtual ShaderProgram * createGammaCorrectionShader() = 0;
+		virtual ShaderProgram * createOrientationCorrectionShader() = 0;
 		virtual ShaderProgram * createFXAAShader() = 0;
 		virtual TextDrawerShaderProgram * createTextDrawerShader() = 0;
 		virtual void resetShaderProgram() = 0;
@@ -71,7 +71,6 @@ namespace graphics {
 		virtual void drawLine(f32 _width, SPVertex * _vertices) = 0;
 		virtual f32 getMaxLineWidth() = 0;
 		virtual bool isSupported(SpecialFeatures _feature) const = 0;
-		virtual s32 getMaxMSAALevel() = 0;
 		virtual bool isError() const = 0;
 		virtual bool isFramebufferError() const = 0;
 	};

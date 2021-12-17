@@ -31,33 +31,23 @@ static int left_z, left_dzdy;
 
 __inline int imul16(int x, int y)        // (x * y) >> 16
 {
-	return (int)((unsigned long long)(((long long)x) * ((long long)y)) >> 16);
+	return (((long long)x) * ((long long)y)) >> 16;
 }
 
 __inline int imul14(int x, int y)        // (x * y) >> 14
 {
-	return (int)((unsigned long long)(((long long)x) * ((long long)y)) >> 14);
+	return (((long long)x) * ((long long)y)) >> 14;
 }
-
 __inline int idiv16(int x, int y)        // (x << 16) / y
 {
-	return (int)((long long)((((unsigned long long)x) << 16)) / ((long long)y));
+	x = (((long long)x) << 16) / ((long long)y);
+	return x;
 }
 
 __inline int iceil(int x)
 {
 	x += 0xffff;
-	return x / 0x10000;
-}
-
-__inline int isub(int x, int y) // safe x - y
-{
-	return (int)((long long)x - (long long)y);
-}
-
-__inline int isumm(int x, int y) // safe x + y
-{
-	return (int)((long long)x + (long long)y);
+	return (x >> 16);
 }
 
 static
@@ -77,7 +67,7 @@ void RightSection(void)
 
 	// Calculate number of scanlines in this section
 
-	right_height = isub(iceil(v2->y), iceil(v1->y));
+	right_height = iceil(v2->y) - iceil(v1->y);
 	if (right_height <= 0)
 		return;
 
@@ -87,21 +77,21 @@ void RightSection(void)
 		// OK, no worries, we have a section that is at least
 		// one pixel high. Calculate slope as usual.
 
-		int height = isub(v2->y, v1->y);
-		right_dxdy = idiv16(isub(v2->x, v1->x), height);
+		int height = v2->y - v1->y;
+		right_dxdy = idiv16(v2->x - v1->x, height);
 	} else {
 		// Height is less or equal to one pixel.
 		// Calculate slope = width * 1/height
 		// using 18:14 bit precision to avoid overflows.
 
-		int inv_height = (0x10000 << 14) / (isub(v2->y, v1->y));
-		right_dxdy = imul14(isub(v2->x, v1->x), inv_height);
+		int inv_height = (0x10000 << 14) / (v2->y - v1->y);
+		right_dxdy = imul14(v2->x - v1->x, inv_height);
 	}
 
 	// Prestep initial values
 
-	int prestep = isub((iceil(v1->y) << 16), v1->y);
-	right_x = isumm(v1->x,  imul16(prestep, right_dxdy));
+	int prestep = (iceil(v1->y) << 16) - v1->y;
+	right_x = v1->x + imul16(prestep, right_dxdy);
 }
 
 static
@@ -121,7 +111,7 @@ void LeftSection(void)
 
 	// Calculate number of scanlines in this section
 
-	left_height = isub(iceil(v2->y), iceil(v1->y));
+	left_height = iceil(v2->y) - iceil(v1->y);
 	if (left_height <= 0)
 		return;
 
@@ -131,24 +121,24 @@ void LeftSection(void)
 		// OK, no worries, we have a section that is at least
 		// one pixel high. Calculate slope as usual.
 
-		int height = isub(v2->y, v1->y);
-		left_dxdy = idiv16(isub(v2->x, v1->x), height);
-		left_dzdy = idiv16(isub(v2->z, v1->z), height);
+		int height = v2->y - v1->y;
+		left_dxdy = idiv16(v2->x - v1->x, height);
+		left_dzdy = idiv16(v2->z - v1->z, height);
 	} else {
 		// Height is less or equal to one pixel.
 		// Calculate slope = width * 1/height
 		// using 18:14 bit precision to avoid overflows.
 
-		int inv_height = (0x10000 << 14) / isub(v2->y, v1->y);
-		left_dxdy = imul14(isub(v2->x, v1->x), inv_height);
-		left_dzdy = imul14(isub(v2->z, v1->z), inv_height);
+		int inv_height = (0x10000 << 14) / (v2->y - v1->y);
+		left_dxdy = imul14(v2->x - v1->x, inv_height);
+		left_dzdy = imul14(v2->z - v1->z, inv_height);
 	}
 
 	// Prestep initial values
 
 	int prestep = (iceil(v1->y) << 16) - v1->y;
-	left_x = isumm(v1->x, imul16(prestep, left_dxdy));
-	left_z = isumm(v1->z, imul16(prestep, left_dzdy));
+	left_x = v1->x + imul16(prestep, left_dxdy);
+	left_z = v1->z + imul16(prestep, left_dzdy);
 }
 
 
@@ -208,7 +198,7 @@ void Rasterize(vertexi * vtx, int vertices, int dzdx)
 	int shift;
 
 	const u16 * const zLUT = depthBufferList().getZLUT();
-	const s32 depthBufferWidth = static_cast<s32>(depthBufferList().getCurrent()->m_width);
+	const u32 depthBufferWidth = depthBufferList().getCurrent()->m_width;
 
 	for (;;) {
 		int x1 = iceil(left_x);
@@ -222,8 +212,8 @@ void Rasterize(vertexi * vtx, int vertices, int dzdx)
 
 			// Prestep initial z
 
-			int prestep = isub((int)((unsigned int)x1 << 16), left_x);
-			int z = isumm(left_z, imul16(prestep, dzdx));
+			int prestep = (x1 << 16) - left_x;
+			int z = left_z + imul16(prestep, dzdx);
 
 			shift = x1 + y1*depthBufferWidth;
 			//draw to depth buffer
@@ -238,7 +228,7 @@ void Rasterize(vertexi * vtx, int vertices, int dzdx)
 				idx = (shift + x) ^ 1;
 				if (encodedZ < destptr[idx])
 					destptr[idx] = encodedZ;
-				z = isumm(z, dzdx);
+				z = std::min(z + dzdx, 0x7fffffff);
 			}
 		}
 
@@ -267,8 +257,8 @@ void Rasterize(vertexi * vtx, int vertices, int dzdx)
 				LeftSection();
 			} while (left_height <= 0);
 		} else {
-			left_x = isumm(left_x, left_dxdy);
-			left_z = isumm(left_z, left_dzdy);
+			left_x += left_dxdy;
+			left_z += left_dzdy;
 		}
 	}
 }

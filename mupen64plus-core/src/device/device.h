@@ -26,7 +26,6 @@
 #include <stdint.h>
 
 #include "cart/cart.h"
-#include "cart/is_viewer.h"
 #include "controllers/game_controller.h"
 #include "controllers/paks/biopak.h"
 #include "controllers/paks/mempak.h"
@@ -80,7 +79,6 @@ enum { GAME_CONTROLLERS_COUNT = 4 };
 #define MM_DOM2_ADDR2       UINT32_C(0x08000000)
 
 #define MM_CART_ROM         UINT32_C(0x10000000) /* dom1 addr2 */
-#define MM_IS_VIEWER        UINT32_C(0x13ff0000) /* IS-Viewer */
 #define MM_PIF_MEM          UINT32_C(0x1fc00000)
 #define MM_CART_DOM3        UINT32_C(0x1fd00000) /* dom2 addr2 */
 
@@ -100,7 +98,6 @@ struct device
     struct pif pif;
     struct rdram rdram;
     struct memory mem;
-    struct is_viewer is;
 
     struct game_controller controllers[GAME_CONTROLLERS_COUNT];
     struct biopak biopaks[GAME_CONTROLLERS_COUNT];
@@ -123,7 +120,6 @@ void init_device(struct device* dev,
     unsigned int count_per_op,
     int no_compiled_jump,
     int randomize_interrupt,
-    uint32_t start_address,
     /* ai */
     void* aout, const struct audio_out_backend_interface* iaout,
     /* si */

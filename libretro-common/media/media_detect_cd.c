@@ -352,7 +352,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
           * but I have not seen any real examples of them. */
          info->system_id = MEDIA_CD_SYSTEM_MEGA_CD;
 
-         strcpy_literal(info->system, "Sega CD / Mega CD");
+         strlcpy(info->system, "Sega CD / Mega CD", sizeof(info->system));
 
          title_pos = buf + offset + 0x150;
 
@@ -362,7 +362,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->title, sizeof(info->title));
          }
          else
-            strcpy_literal(info->title, "N/A");
+            strlcpy(info->title, "N/A", sizeof(info->title));
 
          serial_pos = buf + offset + 0x183;
 
@@ -372,7 +372,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->serial, sizeof(info->serial));
          }
          else
-            strcpy_literal(info->serial, "N/A");
+            strlcpy(info->serial, "N/A", sizeof(info->serial));
       }
       else if (!memcmp(buf + offset, "SEGA SEGASATURN",
                STRLEN_CONST("SEGA SEGASATURN")))
@@ -387,7 +387,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
 
          info->system_id = MEDIA_CD_SYSTEM_SATURN;
 
-         strcpy_literal(info->system, "Sega Saturn");
+         strlcpy(info->system, "Sega Saturn", sizeof(info->system));
 
          title_pos = buf + offset + 0x60;
 
@@ -397,7 +397,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->title, sizeof(info->title));
          }
          else
-            strcpy_literal(info->title, "N/A");
+            strlcpy(info->title, "N/A", sizeof(info->title));
 
          serial_pos = buf + offset + 0x20;
 
@@ -407,7 +407,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->serial, sizeof(info->serial));
          }
          else
-            strcpy_literal(info->serial, "N/A");
+            strlcpy(info->serial, "N/A", sizeof(info->serial));
 
          version_pos = buf + offset + 0x2a;
 
@@ -417,7 +417,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->version, sizeof(info->version));
          }
          else
-            strcpy_literal(info->version, "N/A");
+            strlcpy(info->version, "N/A", sizeof(info->version));
 
          release_date_pos = buf + offset + 0x30;
 
@@ -427,7 +427,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->release_date, sizeof(info->release_date));
          }
          else
-            strcpy_literal(info->release_date, "N/A");
+            strlcpy(info->release_date, "N/A", sizeof(info->release_date));
       }
       else if (!memcmp(buf + offset, "SEGA SEGAKATANA", STRLEN_CONST("SEGA SEGAKATANA")))
       {
@@ -441,7 +441,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
 
          info->system_id = MEDIA_CD_SYSTEM_DREAMCAST;
 
-         strcpy_literal(info->system, "Sega Dreamcast");
+         strlcpy(info->system, "Sega Dreamcast", sizeof(info->system));
 
          title_pos = buf + offset + 0x80;
 
@@ -451,7 +451,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->title, sizeof(info->title));
          }
          else
-            strcpy_literal(info->title, "N/A");
+            strlcpy(info->title, "N/A", sizeof(info->title));
 
          serial_pos = buf + offset + 0x40;
 
@@ -461,7 +461,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->serial, sizeof(info->serial));
          }
          else
-            strcpy_literal(info->serial, "N/A");
+            strlcpy(info->serial, "N/A", sizeof(info->serial));
 
          version_pos = buf + offset + 0x4a;
 
@@ -471,7 +471,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->version, sizeof(info->version));
          }
          else
-            strcpy_literal(info->version, "N/A");
+            strlcpy(info->version, "N/A", sizeof(info->version));
 
          release_date_pos = buf + offset + 0x50;
 
@@ -481,7 +481,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->release_date, sizeof(info->release_date));
          }
          else
-            strcpy_literal(info->release_date, "N/A");
+            strlcpy(info->release_date, "N/A", sizeof(info->release_date));
       }
       /* Primary Volume Descriptor fields of ISO9660 */
       else if (!memcmp(buf + offset + (16 * sector_size), "\1CD001\1\0PLAYSTATION", 19))
@@ -493,7 +493,7 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
 
          info->system_id = MEDIA_CD_SYSTEM_PSX;
 
-         strcpy_literal(info->system, "Sony PlayStation");
+         strlcpy(info->system, "Sony PlayStation", sizeof(info->system));
 
          title_pos = buf + offset + (16 * sector_size) + 40;
 
@@ -503,19 +503,19 @@ bool media_detect_cd_info(const char *path, uint64_t pregap_bytes, media_detect_
             media_zero_trailing_spaces(info->title, sizeof(info->title));
          }
          else
-            strcpy_literal(info->title, "N/A");
+            strlcpy(info->title, "N/A", sizeof(info->title));
       }
       else if (!memcmp(buf + offset, "\x01\x5a\x5a\x5a\x5a\x5a\x01\x00\x00\x00\x00\x00", 12))
       {
          info->system_id = MEDIA_CD_SYSTEM_3DO;
 
-         strcpy_literal(info->system, "3DO");
+         strlcpy(info->system, "3DO", sizeof(info->system));
       }
       else if (!memcmp(buf + offset + 0x950, "PC Engine CD-ROM SYSTEM", 23))
       {
          info->system_id = MEDIA_CD_SYSTEM_PC_ENGINE_CD;
 
-         strcpy_literal(info->system, "TurboGrafx-CD / PC-Engine CD");
+         strlcpy(info->system, "TurboGrafx-CD / PC-Engine CD", sizeof(info->system));
       }
 
       free(buf);

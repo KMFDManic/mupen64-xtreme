@@ -3,6 +3,10 @@ image: Visual Studio 2017
 version: 1.0.{build}
 pull_requests:
   do_not_increment_build_number: true
+branches:
+  only:
+  - master
+skip_branch_with_pr: true
 
 environment:
   BUILD_PATH: $(APPVEYOR_BUILD_FOLDER)\build
@@ -67,7 +71,7 @@ after_build:
   - del /Q %Mupen64PluginsDir_x64%\*.lib %Mupen64PluginsDir_x64%\*.exp
   - del /Q %Mupen64PluginsDir%\*.lib %Mupen64PluginsDir%\*.exp
   - cd %BUILD_PATH%
-  - ps: $env:revision = git rev-parse --short HEAD
+  - ps: $env:revision = git describe --always
   - set archive_name=GLideN64-%revision%-@fname.7z
   - forfiles /p %BUILD_PATH% /c "cmd /c 7z a %archive_name% @path\*"
 

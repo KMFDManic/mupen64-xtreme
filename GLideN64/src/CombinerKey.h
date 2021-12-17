@@ -18,8 +18,6 @@ public:
 
 	bool isRectKey() const;
 
-	bool isHWLSupported() const;
-
 	u32 getCycleType() const;
 
 	u32 getBilerp() const;

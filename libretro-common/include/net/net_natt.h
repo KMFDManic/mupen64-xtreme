@@ -62,8 +62,7 @@ struct natt_status
 /**
  * Initialize global NAT traversal structures (must be called once to use other
  * functions) */
-void natt_init(struct natt_status *status,
-      uint16_t port, enum socket_protocol proto);
+void natt_init(void);
 
 /** Initialize a NAT traversal status object */
 bool natt_new(struct natt_status *status);

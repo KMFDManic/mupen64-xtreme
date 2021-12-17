@@ -79,7 +79,11 @@ static void do_dma(struct ai_controller* ai, struct ai_dma* dma)
             ? 44100 /* default sample rate */
             : ai->vi->clock / (1 + ai->regs[AI_DACRATE_REG]);
 
-        ai->iaout->set_frequency(ai->aout, frequency);
+        unsigned int bits = (ai->regs[AI_BITRATE_REG] == 0)
+            ? 16 /* default bit rate */
+            : 1 + ai->regs[AI_BITRATE_REG];
+
+        ai->iaout->set_format(ai->aout, frequency, bits);
 
         ai->samples_format_changed = 0;
     }
@@ -205,6 +209,7 @@ void write_ai_regs(void* opaque, uint32_t address, uint32_t value, uint32_t mask
         clear_rcp_interrupt(ai->mi, MI_INTR_AI);
         return;
 
+    case AI_BITRATE_REG:
     case AI_DACRATE_REG:
         /* lazy audio format setting */
         if ((ai->regs[reg]) != (value & mask))
@@ -226,7 +231,6 @@ void ai_end_of_dma_event(void* opaque)
         unsigned int diff = ai->fifo[0].length - ai->last_read;
         unsigned char *p = (unsigned char*)&ai->ri->rdram->dram[ai->fifo[0].address/4];
         ai->iaout->push_samples(ai->aout, p + diff, ai->last_read);
-        ai->last_read = 0;
     }
 
     fifo_pop(ai);

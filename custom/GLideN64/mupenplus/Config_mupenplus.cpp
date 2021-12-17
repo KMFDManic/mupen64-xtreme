@@ -110,10 +110,9 @@ void LoadCustomSettings(bool internal)
 						config.texture.bilinearMode = atoi(l.value);
 					else if (!strcmp(l.name, "texture\\maxAnisotropy"))
 						config.texture.maxAnisotropy = atoi(l.value);
-					else if (!strcmp(l.name, "graphics2D\\enableNativeResTexrects"))
+					else if (!strcmp(l.name, "generalEmulation\\enableNativeResTexrects"))
 						config.graphics2D.enableNativeResTexrects = atoi(l.value);
-					// Inconsistent
-					else if (!strcmp(l.name, "generalEmulation\\correctTexrectCoords") || !strcmp(l.name, "graphics2D\\correctTexrectCoords"))
+					else if (!strcmp(l.name, "generalEmulation\\correctTexrectCoords"))
 						config.graphics2D.correctTexrectCoords = atoi(l.value);
 					else if (!strcmp(l.name, "generalEmulation\\enableLegacyBlending"))
 						config.generalEmulation.enableLegacyBlending = atoi(l.value);
@@ -135,14 +134,6 @@ extern "C" void Config_LoadConfig()
 	u32 hacks = config.generalEmulation.hacks;
 	
 	config.resetToDefaults();
-
-	// Early
-	if(GLideN64IniBehaviour == 1)
-	{
-		LoadCustomSettings(true);
-		LoadCustomSettings(false);
-	}
-
 	config.frameBufferEmulation.aspect = AspectRatio;
 	config.frameBufferEmulation.enable = EnableFBEmulation;
 	config.frameBufferEmulation.N64DepthCompare = EnableN64DepthCompare;
@@ -185,36 +176,29 @@ extern "C" void Config_LoadConfig()
 	config.video.fxaa = EnableFXAA;
 	config.video.multisampling = MultiSampling;
 	
-	// Overscan
-	config.frameBufferEmulation.enableOverscan = EnableOverscan;
-	// NTSC
-	config.frameBufferEmulation.overscanNTSC.left = OverscanLeft;
-	config.frameBufferEmulation.overscanNTSC.right = OverscanRight;
-	config.frameBufferEmulation.overscanNTSC.top = OverscanTop;
-	config.frameBufferEmulation.overscanNTSC.bottom = OverscanBottom;
-	// PAL
-	config.frameBufferEmulation.overscanPAL.left = OverscanLeft;
-	config.frameBufferEmulation.overscanPAL.right = OverscanRight;
-	config.frameBufferEmulation.overscanPAL.top = OverscanTop;
-	config.frameBufferEmulation.overscanPAL.bottom = OverscanBottom;
+    // Overscan
+    config.frameBufferEmulation.enableOverscan = EnableOverscan;
+    // NTSC
+    config.frameBufferEmulation.overscanNTSC.left = OverscanLeft;
+    config.frameBufferEmulation.overscanNTSC.right = OverscanRight;
+    config.frameBufferEmulation.overscanNTSC.top = OverscanTop;
+    config.frameBufferEmulation.overscanNTSC.bottom = OverscanBottom;
+    // PAL
+    config.frameBufferEmulation.overscanPAL.left = OverscanLeft;
+    config.frameBufferEmulation.overscanPAL.right = OverscanRight;
+    config.frameBufferEmulation.overscanPAL.top = OverscanTop;
+    config.frameBufferEmulation.overscanPAL.bottom = OverscanBottom;
 
 	config.graphics2D.correctTexrectCoords = CorrectTexrectCoords;
-	config.graphics2D.enableTexCoordBounds = EnableTexCoordBounds;
 	config.graphics2D.enableNativeResTexrects = enableNativeResTexrects;
 
 	config.graphics2D.bgMode = BackgroundMode;
 
 	config.textureFilter.txEnhancedTextureFileStorage = EnableEnhancedTextureStorage;
-	config.textureFilter.txHresAltCRC = EnableHiResAltCRC;
 	config.textureFilter.txHiresTextureFileStorage = EnableEnhancedHighResStorage;
 	config.frameBufferEmulation.nativeResFactor = EnableNativeResFactor;
 
 	config.generalEmulation.hacks = hacks;
-
-	// Late
-	if(GLideN64IniBehaviour == 0)
-	{
-		LoadCustomSettings(true);
-		LoadCustomSettings(false);
-	}
+	LoadCustomSettings(true);
+	LoadCustomSettings(false);
 }

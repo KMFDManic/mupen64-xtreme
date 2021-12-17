@@ -5,7 +5,6 @@
 #include "PostProcessor.h"
 #include "FrameBuffer.h"
 #include "Config.h"
-#include "VI.h"
 
 #include <Graphics/Context.h>
 #include <Graphics/Parameters.h>
@@ -72,6 +71,10 @@ void PostProcessor::init()
 		m_FXAAProgram.reset(gfxContext.createFXAAShader());
 		m_postprocessingList.emplace_front(std::mem_fn(&PostProcessor::_doFXAA));
 	}
+	if (config.generalEmulation.enableBlitScreenWorkaround != 0) {
+		m_orientationCorrectionProgram.reset(gfxContext.createOrientationCorrectionShader());
+		m_postprocessingList.emplace_front(std::mem_fn(&PostProcessor::_doOrientationCorrection));
+	}
 }
 
 void PostProcessor::destroy()
@@ -79,6 +82,7 @@ void PostProcessor::destroy()
 	m_postprocessingList.clear();
 	m_gammaCorrectionProgram.reset();
 	m_FXAAProgram.reset();
+	m_orientationCorrectionProgram.reset();
 	m_pResultBuffer.reset();
 }
 
@@ -95,8 +99,7 @@ PostProcessor & PostProcessor::get()
 
 void PostProcessor::_preDraw(FrameBuffer * _pBuffer)
 {
-	if (!m_pResultBuffer || m_pResultBuffer->m_width != _pBuffer->m_width || m_pResultBuffer->m_height != _pBuffer->m_height ||
-		m_pResultBuffer->m_scale != _pBuffer->m_scale)
+	if (!m_pResultBuffer || m_pResultBuffer->m_width != _pBuffer->m_width)
 		_createResultBuffer(_pBuffer);
 
 	if (_pBuffer->m_pTexture->frameBufferTexture == CachedTexture::fbMultiSample) {
@@ -153,10 +156,21 @@ FrameBuffer * PostProcessor::_doGammaCorrection(FrameBuffer * _pBuffer)
 	if (_pBuffer == nullptr)
 		return nullptr;
 
-	if (((*REG.VI_STATUS & VI_STATUS_GAMMA_ENABLED) | config.gammaCorrection.force) == 0)
+	if (((*REG.VI_STATUS & 8) | config.gammaCorrection.force) == 0)
 		return _pBuffer;
 
 	return _doPostProcessing(_pBuffer, m_gammaCorrectionProgram.get());
+}
+
+FrameBuffer * PostProcessor::_doOrientationCorrection(FrameBuffer * _pBuffer)
+{
+	if (_pBuffer == nullptr)
+		return nullptr;
+
+	if (config.generalEmulation.enableBlitScreenWorkaround == 0)
+		return _pBuffer;
+
+	return _doPostProcessing(_pBuffer, m_orientationCorrectionProgram.get());
 }
 
 FrameBuffer * PostProcessor::_doFXAA(FrameBuffer * _pBuffer)

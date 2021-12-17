@@ -64,11 +64,10 @@ RingBufferPool::RingBufferPool(size_t _poolSize) :
 PoolBufferPointer RingBufferPool::createPoolBuffer(const char* _buffer, size_t _bufferSize)
 {
 	size_t realBufferSize = _bufferSize;
-	const int byteAlignment = 8;
-	const size_t remainder = _bufferSize % byteAlignment;
+	const size_t remainder = _bufferSize % 4;
 
 	if (remainder != 0)
-		realBufferSize = _bufferSize + byteAlignment - remainder;
+		realBufferSize = _bufferSize + 4 - remainder;
 
 	const size_t tempInUseStart = m_inUseStartOffset;
 
@@ -117,49 +116,23 @@ PoolBufferPointer RingBufferPool::createPoolBuffer(const char* _buffer, size_t _
 			}
 
 			std::unique_lock<std::mutex> lock(m_mutex);
-			size_t poolBufferSize = m_poolBuffer.size();
 			if (m_poolBuffer.size() < realBufferSize) {
-				std::stringstream logString;
-				logString << " Increasing buffer size from " << m_poolBuffer.size() << " to " << realBufferSize;
-				LOG(LOG_VERBOSE, logString.str().c_str());
-				poolBufferSize = realBufferSize;
-			}
-
-			m_condition.wait(lock, [this, realBufferSize, poolBufferSize] {
-				const size_t tempInUseStartLocal = m_inUseStartOffset;
-				const size_t remainingLocal =
-					tempInUseStartLocal > m_inUseEndOffset || m_full ? static_cast<size_t>(
-						tempInUseStartLocal - m_inUseEndOffset) :
-					poolBufferSize - m_inUseEndOffset + tempInUseStartLocal;
-
-				return remainingLocal >= realBufferSize;
-			});
-
-			// Resize afterwards, we don't want to lose the validity of pointers
-			// pointing at the old data, also wait until the memory pool is empty,
-			// we don't want anyone point to the old allocation.
-			if (m_poolBuffer.size() < realBufferSize) {
-
-				const size_t tempInUseStartLocal = m_inUseStartOffset;
-				const size_t remainingLocal =
-					tempInUseStartLocal > m_inUseEndOffset || m_full ? static_cast<size_t>(
-						tempInUseStartLocal - m_inUseEndOffset) :
-					poolBufferSize - m_inUseEndOffset + tempInUseStartLocal;
-
-				if (remainingLocal != realBufferSize) {
-					m_condition.wait(lock, [this, realBufferSize, poolBufferSize] {
-						const size_t tempInUseStartLocal = m_inUseStartOffset;
-						const size_t remainingLocal =
-							tempInUseStartLocal > m_inUseEndOffset || m_full ? static_cast<size_t>(
-								tempInUseStartLocal - m_inUseEndOffset) :
-							poolBufferSize - m_inUseEndOffset + tempInUseStartLocal;
-
-						return remainingLocal == realBufferSize;
-						});
-				}
+				std::stringstream errorString;
+				errorString << " Increasing buffer size from " << m_poolBuffer.size() << " to " << realBufferSize;
+				LOG(LOG_VERBOSE, errorString.str().c_str());
 
 				m_poolBuffer.resize(realBufferSize);
 			}
+
+			m_condition.wait(lock, [this, realBufferSize] {
+				const size_t tempInUseStartLocal = m_inUseStartOffset;
+				const size_t remainingLocal =
+					tempInUseStartLocal > m_inUseEndOffset || m_full ? static_cast<size_t>(
+						tempInUseStartLocal - m_inUseEndOffset) :
+					m_poolBuffer.size() - m_inUseEndOffset + tempInUseStartLocal;
+
+				return remainingLocal >= realBufferSize;
+			});
 		}
 
 		return createPoolBuffer(_buffer, _bufferSize);

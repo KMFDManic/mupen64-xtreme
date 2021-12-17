@@ -16,7 +16,7 @@ Q_IMPORT_PLUGIN(QICOPlugin)
 //#define RUN_DIALOG_IN_THREAD
 
 static
-int openConfigDialog(const wchar_t * _strFileName, const char * _romName, unsigned int _maxMSAALevel, bool & _accepted)
+int openConfigDialog(const wchar_t * _strFileName, const char * _romName, bool & _accepted)
 {
 	std::string IniFolder;
 	uint32_t slength = WideCharToMultiByte(CP_ACP, 0, _strFileName, -1, NULL, 0, NULL, NULL);
@@ -33,28 +33,26 @@ int openConfigDialog(const wchar_t * _strFileName, const char * _romName, unsign
 	CConfigDlg Dlg;
 	Dlg.setIniPath(IniFolder.c_str());
 	Dlg.setRomName(_romName);
-	Dlg.setMSAALevel(_maxMSAALevel);
 	Dlg.DoModal();
 	_accepted = Dlg.Saved();
 	return 0;
 }
 
-bool runConfigThread(const wchar_t * _strFileName, const char * _romName, unsigned int _maxMSAALevel)
-{
+bool runConfigThread(const wchar_t * _strFileName, const char * _romName) {
 	bool accepted = false;
 #ifdef RUN_DIALOG_IN_THREAD
-	std::thread configThread(openConfigDialog, _strFileName, _maxMSAALevel, std::ref(accepted));
+	std::thread configThread(openConfigDialog, _strFileName, std::ref(accepted));
 	configThread.join();
 #else
-	openConfigDialog(_strFileName, _romName, _maxMSAALevel, accepted);
+	openConfigDialog(_strFileName, _romName, accepted);
 #endif
 	return accepted;
 
 }
 
-EXPORT bool CALL RunConfig(const wchar_t * _strFileName, const char * _romName, unsigned int _maxMSAALevel)
+EXPORT bool CALL RunConfig(const wchar_t * _strFileName, const char * _romName)
 {
-	return runConfigThread(_strFileName, _romName, _maxMSAALevel);
+	return runConfigThread(_strFileName, _romName);
 }
 
 EXPORT int CALL RunAbout(const wchar_t * _strFileName)

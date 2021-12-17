@@ -86,13 +86,6 @@ void dir_list_free(struct string_list *list)
    string_list_free(list);
 }
 
-bool dir_list_deinitialize(struct string_list *list)
-{
-   if (!list)
-      return false;
-   return string_list_deinitialize(list);
-}
-
 /**
  * dir_list_read:
  * @dir                : directory path.
@@ -123,21 +116,10 @@ static int dir_list_read(const char *dir,
       char file_path[PATH_MAX_LENGTH];
       const char *name                = retro_dirent_get_name(entry);
 
-      if (name[0] == '.')
-      {
-         /* Do not include hidden files and directories */
-         if (!include_hidden)
-            continue;
-
-         /* char-wise comparisons to avoid string comparison */
-
-         /* Do not include current dir */
-         if (name[1] == '\0')
-            continue;
-         /* Do not include parent dir */
-         if (name[1] == '.' && name[2] == '\0')
-            continue;
-      }
+      if (!include_hidden && *name == '.')
+         continue;
+      if (!strcmp(name, ".") || !strcmp(name, ".."))
+         continue;
 
       file_path[0] = '\0';
       fill_pathname_join(file_path, dir, name, sizeof(file_path));
@@ -214,19 +196,12 @@ bool dir_list_append(struct string_list *list,
       bool include_hidden, bool include_compressed,
       bool recursive)
 {
-   bool ret                         = false;
-   struct string_list ext_list      = {0};
-   struct string_list *ext_list_ptr = NULL;
-
-   if (ext)
-   {
-      string_list_initialize(&ext_list);
-      string_split_noalloc(&ext_list, ext, "|");
-      ext_list_ptr                  = &ext_list;
-   }
-   ret                            = dir_list_read(dir, list, ext_list_ptr,
+   struct string_list *ext_list   = ext ? string_split(ext, "|") : NULL;
+   bool ret                       = dir_list_read(dir, list, ext_list,
          include_dirs, include_hidden, include_compressed, recursive) != -1;
-   string_list_deinitialize(&ext_list);
+
+   string_list_free(ext_list);
+
    return ret;
 }
 
@@ -249,9 +224,9 @@ struct string_list *dir_list_new(const char *dir,
       bool include_hidden, bool include_compressed,
       bool recursive)
 {
-   struct string_list *list       = string_list_new();
+   struct string_list *list       = NULL;
 
-   if (!list)
+   if (!(list = string_list_new()))
       return NULL;
 
    if (!dir_list_append(list, dir, ext, include_dirs,
@@ -262,19 +237,4 @@ struct string_list *dir_list_new(const char *dir,
    }
 
    return list;
-}
-
-/* Warning: 'list' must zero initialised before
- * calling this function, otherwise memory leaks/
- * undefined behaviour will occur */
-bool dir_list_initialize(struct string_list *list,
-      const char *dir,
-      const char *ext, bool include_dirs,
-      bool include_hidden, bool include_compressed,
-      bool recursive)
-{
-   if (!list || !string_list_initialize(list))
-      return false;
-   return dir_list_append(list, dir, ext, include_dirs,
-            include_hidden, include_compressed, recursive);
 }

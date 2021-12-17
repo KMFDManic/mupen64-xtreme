@@ -52,6 +52,7 @@ struct new_dynarec_hot_state
 #else
     uint32_t dynarec_local[16];
 #endif
+    unsigned int next_interrupt;
     int cycle_count;
     int pending_exception;
     int pcaddr;
@@ -78,6 +79,7 @@ struct new_dynarec_hot_state
     int64_t rd;
     intptr_t ram_offset;
     uintptr_t mini_ht[32][2];
+    unsigned char restore_candidate[512];
     uintptr_t memory_map[1048576];
 #else
     char dummy;

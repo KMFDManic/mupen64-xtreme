@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <lrc_hash.h>
+#include <rhash.h>
 
 int main (int argc, char *argv[])
 {

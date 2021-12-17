@@ -1,5 +1,5 @@
 #include "config-overscan.h"
-#include "util/util.h"
+#include "util.h"
 #include "resource.h"
 
 COverScanTab::COverScanTab()

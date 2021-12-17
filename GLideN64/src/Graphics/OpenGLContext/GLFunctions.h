@@ -3,7 +3,6 @@
 
 #ifdef OS_WINDOWS
 #include <windows.h>
-//#define FORCE_UNBUFFERED_DRAWER // Debug option.
 #elif defined(OS_LINUX)
 #include <winlnxdefs.h>
 #endif
@@ -57,7 +56,6 @@ typedef void (APIENTRYP PFNGLCOPYTEXIMAGE2DPROC) (GLenum target, GLint level, GL
 #endif
 
 extern PFNGLBLENDFUNCPROC ptrBlendFunc;
-extern PFNGLBLENDFUNCSEPARATEPROC ptrBlendFuncSeparate;
 extern PFNGLPIXELSTOREIPROC ptrPixelStorei;
 extern PFNGLCLEARCOLORPROC ptrClearColor;
 extern PFNGLCULLFACEPROC ptrCullFace;
@@ -215,7 +213,6 @@ extern "C" void initGLFunctions();
 #endif // __LIBRETRO__
 #define glGetError(...) opengl::FunctionWrapper::wrGetError(__VA_ARGS__)
 #define glBlendFunc(...) opengl::FunctionWrapper::wrBlendFunc(__VA_ARGS__)
-#define glBlendFuncSeparate(...) opengl::FunctionWrapper::wrBlendFuncSeparate(__VA_ARGS__)
 #define glPixelStorei(...) opengl::FunctionWrapper::wrPixelStorei(__VA_ARGS__)
 #define glClearColor(...) opengl::FunctionWrapper::wrClearColor(__VA_ARGS__)
 #define glCullFace(...) opengl::FunctionWrapper::wrCullFace(__VA_ARGS__)

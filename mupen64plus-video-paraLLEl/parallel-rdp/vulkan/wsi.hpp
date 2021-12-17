@@ -124,7 +124,6 @@ public:
 	void set_present_mode(PresentMode mode);
 	void set_backbuffer_srgb(bool enable);
 	void set_support_prerotate(bool enable);
-	void set_extra_usage_flags(VkImageUsageFlags usage);
 	VkSurfaceTransformFlagBitsKHR get_current_prerotate() const;
 
 	PresentMode get_present_mode() const
@@ -137,7 +136,7 @@ public:
 		return srgb_backbuffer_enable;
 	}
 
-	bool init(unsigned num_thread_indices, const Context::SystemHandles &system_handles);
+	bool init(unsigned num_thread_indices);
 	bool init_external_context(std::unique_ptr<Vulkan::Context> context);
 	bool init_external_swapchain(std::vector<Vulkan::ImageHandle> external_images);
 	void deinit_external();
@@ -181,6 +180,8 @@ public:
 		return timing;
 	}
 
+	static void build_prerotate_matrix_2x2(VkSurfaceTransformFlagBitsKHR pre_rotate, float mat[4]);
+
 private:
 	void update_framebuffer(unsigned width, unsigned height);
 
@@ -198,9 +199,6 @@ private:
 	VkFormat swapchain_format = VK_FORMAT_UNDEFINED;
 	PresentMode current_present_mode = PresentMode::SyncToVBlank;
 	PresentMode present_mode = PresentMode::SyncToVBlank;
-	VkImageUsageFlags current_extra_usage = 0;
-	VkImageUsageFlags extra_usage = 0;
-	bool swapchain_is_suboptimal = false;
 
 	enum class SwapchainError
 	{
@@ -234,15 +232,9 @@ private:
 	double smooth_frame_time = 0.0;
 	double smooth_elapsed_time = 0.0;
 
-	uint64_t present_id = 0;
-	uint64_t present_last_id = 0;
-	unsigned present_frame_latency = 0;
-
 	WSITiming timing;
 
 	void tear_down_swapchain();
 	void drain_swapchain();
-
-	VkSurfaceFormatKHR find_suitable_present_format(const std::vector<VkSurfaceFormatKHR> &formats) const;
 };
 }

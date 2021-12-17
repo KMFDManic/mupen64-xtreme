@@ -22,13 +22,13 @@ extern "C" void retroChangeWindow()
 	dwnd().changeWindow();
 }
 
-extern size_t rdram_size;
+extern unsigned int* rdram_size;
 int PluginAPI::InitiateGFX(const GFX_INFO & _gfxInfo)
 {
 	_initiateGFX(_gfxInfo);
 
     REG.SP_STATUS = _gfxInfo.SP_STATUS_REG;
-    rdram_size = *_gfxInfo.RDRAM_SIZE;
+    rdram_size = (unsigned int*)_gfxInfo.RDRAM_SIZE;
 
 	return TRUE;
 }

@@ -85,7 +85,6 @@ void init_device(struct device* dev,
     unsigned int count_per_op,
     int no_compiled_jump,
     int randomize_interrupt,
-    uint32_t start_address,
     /* ai */
     void* aout, const struct audio_out_backend_interface* iaout,
     /* si */
@@ -122,8 +121,7 @@ void init_device(struct device* dev,
         { &dev->dp,        rdp_interrupt_event         }, /* DP */
         { &dev->pif,       hw2_int_handler             }, /* HW2 */
         { dev,             nmi_int_handler             }, /* NMI */
-        { dev,             reset_hard_handler          }, /* reset_hard */
-        { &dev->sp,        rsp_end_of_dma_event        }
+        { dev,             reset_hard_handler          }  /* reset_hard */
     };
 
 #define R(x) read_ ## x
@@ -150,9 +148,8 @@ void init_device(struct device* dev,
         { A(MM_DOM2_ADDR1, 0xffffff), M64P_MEM_NOTHING, { NULL, RW(open_bus) } },
         { A(MM_DD_ROM, 0x1ffffff), M64P_MEM_NOTHING, { NULL, RW(open_bus) } },
         { A(MM_DOM2_ADDR2, 0x1ffff), M64P_MEM_FLASHRAMSTAT, { &dev->cart, RW(cart_dom2)  } },
-        { A(MM_IS_VIEWER, 0xfff), M64P_MEM_NOTHING, { &dev->is, RW(is_viewer) } },
         { A(MM_CART_ROM, rom_size-1), M64P_MEM_ROM, { &dev->cart.cart_rom, RW(cart_rom) } },
-        { A(MM_PIF_MEM, 0xffff), M64P_MEM_PIF, { &dev->pif, RW(pif_mem) } }
+        { A(MM_PIF_MEM, 0xffff), M64P_MEM_PIF, { &dev->pif, RW(pif_ram) } }
     };
 
     /* init and map DD if present */
@@ -178,7 +175,7 @@ void init_device(struct device* dev,
     init_rdram(&dev->rdram, mem_base_u32(base, MM_RDRAM_DRAM), dram_size, &dev->r4300);
 
     init_r4300(&dev->r4300, &dev->mem, &dev->mi, &dev->rdram, interrupt_handlers,
-            emumode, count_per_op, no_compiled_jump, randomize_interrupt, start_address);
+            emumode, count_per_op, no_compiled_jump, randomize_interrupt);
     init_rdp(&dev->dp, &dev->sp, &dev->mi, &dev->mem, &dev->rdram, &dev->r4300);
     init_rsp(&dev->sp, mem_base_u32(base, MM_RSP_MEM), &dev->mi, &dev->dp, &dev->ri);
     init_ai(&dev->ai, &dev->mi, &dev->ri, &dev->vi, aout, iaout);
@@ -204,8 +201,7 @@ void init_device(struct device* dev,
         (uint8_t*)mem_base_u32(base, MM_PIF_MEM),
         jbds, ijbds,
         (uint8_t*)mem_base_u32(base, rom_base) + 0x40,
-        &dev->r4300,
-        &dev->si);
+        &dev->r4300);
 
     init_cart(&dev->cart,
             af_rtc_clock, iaf_rtc_clock,
@@ -236,8 +232,6 @@ void poweron_device(struct device* dev)
     poweron_pif(&dev->pif);
 
     poweron_cart(&dev->cart);
-
-    poweron_is_viewer(&dev->is);
 
     /* poweron for controllers */
     for(i = 0; i < GAME_CONTROLLERS_COUNT; ++i) {

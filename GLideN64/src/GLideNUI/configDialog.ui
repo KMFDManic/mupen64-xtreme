@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>747</width>
-    <height>715</height>
+    <width>559</width>
+    <height>613</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,9 +29,6 @@
    </property>
    <item>
     <widget class="QTabWidget" name="tabWidget">
-     <property name="currentIndex">
-      <number>0</number>
-     </property>
      <property name="usesScrollButtons">
       <bool>false</bool>
      </property>
@@ -479,7 +476,7 @@
                       <item>
                        <widget class="QSlider" name="aliasingSlider">
                         <property name="maximum">
-                         <number>4</number>
+                         <number>3</number>
                         </property>
                         <property name="singleStep">
                          <number>1</number>
@@ -1144,16 +1141,6 @@
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="enableCoverageCheckBox">
-              <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Enable pixel coverage calculation. &lt;/span&gt;&lt;/p&gt;&lt;p&gt;Enables approximated pixel coverage calculation. N64 uses pixel coverage for anti-aliasing and in some special blending modes. Some games have wire-frame mode aka 'pen and ink' mode. This mode also needs pixel coverage calculated. &lt;/p&gt;&lt;p&gt;[Recommended: Checked, unless performance is hurt]&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="text">
-               <string>Enable pixel coverage calculation</string>
-              </property>
-             </widget>
-            </item>
-            <item>
              <widget class="QCheckBox" name="enableShadersStorageCheckBox">
               <property name="toolTip">
                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use persistent storage for compiled shader programs.&lt;br/&gt;Each game uses a set of combiners. A combiner is an equation that defines how to build output color from various color inputs. GLideN64 translates shaders, and compiles shader programs on the fly. Shaders are large and complex. If the game uses several new combiners, compiling new shaders will take time and result in stuttering. When this option is checked, these shaders are saved so they're not recompiled the next time you run the game.&lt;/p&gt;&lt;p&gt;[Recommended: &lt;span style=&quot; font-style:italic;&quot;&gt;Checked&lt;/span&gt;]&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -1536,25 +1523,11 @@
                </layout>
               </item>
               <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_29">
-                <item>
-                 <widget class="QCheckBox" name="halosRemovalCheckBox">
-                  <property name="text">
-                   <string>Remove colored halos around transparent objects</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QCheckBox" name="texCoordBoundsCheckBox">
-                  <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Bound texture rectangle texture coordinates to the values they take in native resolutions. It prevents garbage due to fetching out of texture bounds, but can result in hard edges.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                  </property>
-                  <property name="text">
-                   <string>Enable native-res bounds for texture coordinates</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
+               <widget class="QCheckBox" name="halosRemovalCheckBox">
+                <property name="text">
+                 <string>Try to remove colored halos around transparent objects</string>
+                </property>
+               </widget>
               </item>
              </layout>
             </item>
@@ -2706,11 +2679,21 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="hiresTexFileStorageCheckBox">
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This option enables alternative storage for hi-res textures.&lt;/p&gt;&lt;p&gt;Normally memory cache is used. It keeps all hi-res textures in RAM and thus limited by available RAM size.&lt;/p&gt;&lt;p&gt;File storage keeps texture cache on HDD. It is slower than memory cache, but has virtually no limits on cache size.&lt;/p&gt;&lt;p&gt;Disable &amp;quot;Compress texture cache&amp;quot; option for better performance.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
                  <property name="text">
                   <string>Use file storage instead of memory cache</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="textureDumpCheckBox">
+                 <property name="enabled">
+                  <bool>true</bool>
+                 </property>
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This option dumps textures on screen to a texture pack folder. You can also reload textures while the game is running to see how they look instantly—big time saver!&lt;/p&gt;&lt;p&gt;Hotkeys:&lt;br/&gt;Use &lt;span style=&quot; font-weight:600;&quot;&gt;R&lt;/span&gt; to reload textures from the texture pack&lt;br/&gt;Use &lt;span style=&quot; font-weight:600;&quot;&gt;D&lt;/span&gt; to toggle texture dumping on or off&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
+                 <property name="text">
+                  <string>Dump/edit textures</string>
                  </property>
                 </widget>
                </item>
@@ -3383,13 +3366,6 @@
                </property>
               </widget>
              </item>
-             <item>
-              <widget class="QCheckBox" name="statisticsCheckBox">
-               <property name="text">
-                <string>Display statistics</string>
-               </property>
-              </widget>
-             </item>
             </layout>
            </item>
            <item>
@@ -3664,20 +3640,6 @@
           </size>
          </property>
         </spacer>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="hotkeyTab">
-      <attribute name="title">
-       <string>Hotkey</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_45">
-       <item>
-        <layout class="QVBoxLayout" name="verticalLayout_40">
-         <item>
-          <widget class="QListWidget" name="hotkeyListWidget"/>
-         </item>
-        </layout>
        </item>
       </layout>
      </widget>
@@ -3972,6 +3934,54 @@
    </hints>
   </connection>
   <connection>
+   <sender>textureDumpCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>texDumpPathLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>129</x>
+     <y>356</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>125</x>
+     <y>257</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>textureDumpCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>texDumpPathLineEdit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>356</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>471</x>
+     <y>255</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>textureDumpCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>texDumpPathButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>525</x>
+     <y>356</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>526</x>
+     <y>257</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>gammaCorrectionCheckBox</sender>
    <signal>toggled(bool)</signal>
    <receiver>gammaCorrectionNoteFrame</receiver>
@@ -4053,9 +4063,9 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="fixTexrectCoordsButtonGroup"/>
-  <buttongroup name="screenshotButtonGroup"/>
   <buttongroup name="factorButtonGroup"/>
   <buttongroup name="osdButtonGroup"/>
+  <buttongroup name="fixTexrectCoordsButtonGroup"/>
+  <buttongroup name="screenshotButtonGroup"/>
  </buttongroups>
 </ui>

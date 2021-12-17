@@ -26,7 +26,7 @@ namespace glsl {
 
 		bool usesHwLighting() const;
 
-		void addInput(u32 _input);
+		void addInput(int _input);
 
 		void operator+=(const CombinerInputs & _other);
 

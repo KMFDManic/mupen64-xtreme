@@ -54,13 +54,25 @@ enum scaler_type
 struct scaler_filter
 {
    int16_t *filter;
-   int     *filter_pos;
-   int      filter_len;
-   int      filter_stride;
+   int filter_len;
+   int filter_stride;
+   int *filter_pos;
 };
 
 struct scaler_ctx
 {
+   int in_width;
+   int in_height;
+   int in_stride;
+
+   int out_width;
+   int out_height;
+   int out_stride;
+
+   enum scaler_pix_fmt in_fmt;
+   enum scaler_pix_fmt out_fmt;
+   enum scaler_type scaler_type;
+
    void (*scaler_horiz)(const struct scaler_ctx*,
          const void*, int);
    void (*scaler_vert)(const struct scaler_ctx*,
@@ -71,7 +83,9 @@ struct scaler_ctx
    void (*in_pixconv)(void*, const void*, int, int, int, int);
    void (*out_pixconv)(void*, const void*, int, int, int, int);
    void (*direct_pixconv)(void*, const void*, int, int, int, int);
-   struct scaler_filter horiz, vert;   /* ptr alignment */
+
+   bool unscaled;
+   struct scaler_filter horiz, vert;
 
    struct
    {
@@ -92,20 +106,6 @@ struct scaler_ctx
       uint32_t *frame;
       int stride;
    } output;
-
-   int in_width;
-   int in_height;
-   int in_stride;
-
-   int out_width;
-   int out_height;
-   int out_stride;
-
-   enum scaler_pix_fmt in_fmt;
-   enum scaler_pix_fmt out_fmt;
-   enum scaler_type scaler_type;
-
-   bool unscaled;
 };
 
 bool scaler_ctx_gen_filter(struct scaler_ctx *ctx);

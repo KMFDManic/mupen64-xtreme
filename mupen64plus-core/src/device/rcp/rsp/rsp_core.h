@@ -75,21 +75,6 @@ enum sp_registers2
     SP_REGS2_COUNT
 };
 
-enum sp_dma_dir
-{
-    SP_DMA_READ,
-    SP_DMA_WRITE
-};
-
-enum { SP_DMA_FIFO_SIZE = 2} ;
-
-struct sp_dma
-{
-    uint32_t dir;
-    uint32_t length;
-    uint32_t memaddr;
-    uint32_t dramaddr;
-};
 
 struct rsp_core
 {
@@ -101,7 +86,6 @@ struct rsp_core
     struct mi_controller* mi;
     struct rdp_core* dp;
     struct ri_controller* ri;
-    struct sp_dma fifo[SP_DMA_FIFO_SIZE];
 };
 
 static osal_inline uint32_t rsp_mem_address(uint32_t address)
@@ -139,6 +123,5 @@ void write_rsp_regs2(void* opaque, uint32_t address, uint32_t value, uint32_t ma
 void do_SP_Task(struct rsp_core* sp);
 
 void rsp_interrupt_event(void* opaque);
-void rsp_end_of_dma_event(void* opaque);
 
 #endif

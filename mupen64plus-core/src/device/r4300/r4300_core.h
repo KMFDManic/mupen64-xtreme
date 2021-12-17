@@ -195,8 +195,6 @@ struct r4300_core
     struct rdram* rdram;
 
     uint32_t randomize_interrupt;
-
-    uint32_t start_address;
 };
 
 #define R4300_KSEG0 UINT32_C(0x80000000)
@@ -211,7 +209,7 @@ struct r4300_core
     offsetof(struct new_dynarec_hot_state, regs))
 #endif
 
-void init_r4300(struct r4300_core* r4300, struct memory* mem, struct mi_controller* mi, struct rdram* rdram, const struct interrupt_handler* interrupt_handlers, unsigned int emumode, unsigned int count_per_op, int no_compiled_jump, int randomize_interrupt, uint32_t start_address);
+void init_r4300(struct r4300_core* r4300, struct memory* mem, struct mi_controller* mi, struct rdram* rdram, const struct interrupt_handler* interrupt_handlers, unsigned int emumode, unsigned int count_per_op, int no_compiled_jump, int randomize_interrupt);
 void poweron_r4300(struct r4300_core* r4300);
 
 void run_r4300(struct r4300_core* r4300);

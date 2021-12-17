@@ -31,7 +31,6 @@
 #include "rdp_common.hpp"
 #include "command_ring.hpp"
 #include "worker_thread.hpp"
-#include "rdp_dump_write.hpp"
 
 #ifndef GRANITE_VULKAN_MT
 #error "Granite Vulkan backend must be built with multithreading support."
@@ -50,9 +49,7 @@ enum CommandProcessorFlagBits
 	COMMAND_PROCESSOR_FLAG_HOST_VISIBLE_TMEM_BIT = 1 << 1,
 	COMMAND_PROCESSOR_FLAG_UPSCALING_2X_BIT = 1 << 2,
 	COMMAND_PROCESSOR_FLAG_UPSCALING_4X_BIT = 1 << 3,
-	COMMAND_PROCESSOR_FLAG_UPSCALING_8X_BIT = 1 << 4,
-	COMMAND_PROCESSOR_FLAG_SUPER_SAMPLED_READ_BACK_BIT = 1 << 5,
-	COMMAND_PROCESSOR_FLAG_SUPER_SAMPLED_DITHER_BIT = 1 << 6
+	COMMAND_PROCESSOR_FLAG_UPSCALING_8X_BIT = 1 << 4
 };
 using CommandProcessorFlags = uint32_t;
 
@@ -153,7 +150,6 @@ public:
 
 	Vulkan::ImageHandle scanout(const ScanoutOptions &opts = {});
 	void scanout_sync(std::vector<RGBA> &colors, unsigned &width, unsigned &height);
-	void scanout_async_buffer(VIScanoutBuffer &buffer, const ScanoutOptions &opts = {});
 
 private:
 	Vulkan::Device &device;
@@ -176,9 +172,6 @@ private:
 	void clear_tmem();
 	void clear_buffer(Vulkan::Buffer &buffer, uint32_t value);
 	void init_renderer();
-	void enqueue_command_inner(unsigned num_words, const uint32_t *words);
-
-	Vulkan::ImageHandle scanout(const ScanoutOptions &opts, VkImageLayout target_layout);
 
 #define OP(x) void op_##x(const uint32_t *words)
 	OP(fill_triangle); OP(fill_z_buffer_triangle); OP(texture_triangle); OP(texture_z_buffer_triangle);
@@ -236,8 +229,5 @@ private:
 	void decode_triangle_setup(TriangleSetup &setup, const uint32_t *words) const;
 
 	Quirks quirks;
-
-	std::unique_ptr<RDPDumpWriter> dump_writer;
-	bool dump_in_command_list = false;
 };
 }

@@ -3,8 +3,6 @@
 #include "opengl_Utils.h"
 #include "opengl_GLInfo.h"
 #include <regex>
-#include <Graphics/Parameters.h>
-
 #ifdef EGL
 #include <EGL/egl.h>
 #endif
@@ -51,8 +49,6 @@ void GLInfo::init() {
 
 	LOG(LOG_VERBOSE, "OpenGL vendor: %s", glGetString(GL_VENDOR));
 	const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
-
-	bool isAnyAdreno = strstr(strRenderer, "Adreno") != nullptr;
 
 	if (std::regex_match(std::string(strRenderer), std::regex("Adreno.*530")))
 		renderer = Renderer::Adreno530;
@@ -105,21 +101,13 @@ void GLInfo::init() {
 	fragment_interlock = Utils::isExtensionSupported(*this, "GL_ARB_fragment_shader_interlock") && !hasBuggyFragmentShaderInterlock;
 	fragment_interlockNV = Utils::isExtensionSupported(*this, "GL_NV_fragment_shader_interlock") && !fragment_interlock && !hasBuggyFragmentShaderInterlock;
 	fragment_ordering = Utils::isExtensionSupported(*this, "GL_INTEL_fragment_shader_ordering") && !fragment_interlock && !fragment_interlockNV;
-
+	
 	const bool imageTexturesInterlock = imageTextures && (fragment_interlock || fragment_interlockNV || fragment_ordering);
 
 	if (isGLES2) {
 		config.generalEmulation.enableFragmentDepthWrite = 0;
 		config.generalEmulation.enableHybridFilter = 0;
 	}
-
-	drawElementsBaseVertex = !isGLESX ||
-		(Utils::isExtensionSupported(*this, "GL_EXT_draw_elements_base_vertex") || numericVersion >= 32);
-#ifdef EGL
-	if (isGLESX && Utils::isExtensionSupported(*this, "GL_EXT_draw_elements_base_vertex") && numericVersion < 32) {
-		ptrDrawRangeElementsBaseVertex = (PFNGLDRAWRANGEELEMENTSBASEVERTEXPROC) eglGetProcAddress("glDrawRangeElementsBaseVertexEXT");
-	}
-#endif
 
 	bufferStorage = (!isGLESX && (numericVersion >= 44)) || Utils::isExtensionSupported(*this, "GL_ARB_buffer_storage") ||
 			Utils::isExtensionSupported(*this, "GL_EXT_buffer_storage");
@@ -178,28 +166,20 @@ void GLInfo::init() {
 	texture_barrier = !isGLESX && (numericVersion >= 45 || Utils::isExtensionSupported(*this, "GL_ARB_texture_barrier"));
 	texture_barrierNV = Utils::isExtensionSupported(*this, "GL_NV_texture_barrier");
 
-	ext_fetch = Utils::isExtensionSupported(*this, "GL_EXT_shader_framebuffer_fetch") && (!isGLESX || ext_draw_buffers_indexed);
-	n64DepthWithFbFetch = ext_fetch && !imageTexturesInterlock;
+	ext_fetch = Utils::isExtensionSupported(*this, "GL_EXT_shader_framebuffer_fetch") && !isGLES2 && (!isGLESX || ext_draw_buffers_indexed) && !imageTexturesInterlock;
 	eglImage = (Utils::isEGLExtensionSupported("EGL_KHR_image_base") || Utils::isEGLExtensionSupported("EGL_KHR_image"));
-	ext_fetch_arm =  Utils::isExtensionSupported(*this, "GL_ARM_shader_framebuffer_fetch") && !ext_fetch;
-
-	dual_source_blending = !isGLESX || (Utils::isExtensionSupported(*this, "GL_EXT_blend_func_extended") && !isAnyAdreno);
 
 #ifdef OS_ANDROID
 	eglImage = eglImage &&
 	        ( (isGLES2 && GraphicBufferWrapper::isSupportAvailable()) || (isGLESX && GraphicBufferWrapper::isPublicSupportAvailable()) ) &&
-		    (renderer != Renderer::PowerVR) && (renderer != Renderer::Tegra);
+		    (renderer != Renderer::PowerVR);
 #endif
-
-	if (renderer == Renderer::Intel) {
-		graphics::textureTarget::TEXTURE_EXTERNAL = GL_TEXTURE_2D;
-	}
 
 	eglImageFramebuffer = eglImage && !isGLES2;
 
 	if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
 		if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast) {
-			if (!imageTexturesInterlock && !n64DepthWithFbFetch) {
+			if (!imageTexturesInterlock && !ext_fetch) {
 				config.frameBufferEmulation.N64DepthCompare = Config::dcDisable;
 				LOG(LOG_WARNING, "Your GPU does not support the extensions needed for fast N64 Depth Compare.");
 			}
@@ -210,13 +190,6 @@ void GLInfo::init() {
 				LOG(LOG_WARNING, "Your GPU does not support the extensions needed for N64 Depth Compare.");
 			}
 		}
-	}
-
-	coverage = dual_source_blending || ext_fetch || ext_fetch_arm;
-	if (coverage) {
-		GLint maxVertexAttribs = 0;
-		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertexAttribs);
-		coverage = maxVertexAttribs >= 10;
 	}
 
 #ifdef EGL

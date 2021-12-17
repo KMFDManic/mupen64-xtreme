@@ -3,7 +3,6 @@
 
 #include <QDialog>
 #include <QTreeWidgetItem>
-#include "QListWidget"
 
 namespace Ui {
 class ConfigDialog;
@@ -15,7 +14,7 @@ class ConfigDialog : public QDialog
 	Q_OBJECT
 
 public:
-	explicit ConfigDialog(QWidget *parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags(), unsigned int _maxMsaaLevel = 8);
+	explicit ConfigDialog(QWidget *parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
 	~ConfigDialog();
 
 	void setIniPath(const QString & _strIniPath);
@@ -79,15 +78,10 @@ private slots:
 
 	void on_n64DepthCompareComboBox_currentIndexChanged(int index);
 
-    void on_hotkeyListWidget_itemClicked(QListWidgetItem *item);
-
-	void on_btn_clicked();
-
 private:
 	void _init(bool reInit = false, bool blockCustomSettings = false);
 	void _getTranslations(QStringList & _translationFiles) const;
 	void _switchDest(bool isGame);
-	QString _hotkeyDescription(quint32 _idx) const;
 
 	Ui::ConfigDialog *ui;
 	QFont m_font;
@@ -97,7 +91,6 @@ private:
 	bool m_blockReInit;
 	QString m_strIniPath;
 	const char * m_romName;
-	unsigned int m_maxMSAA;
 };
 
 #endif // CONFIGDIALOG_H

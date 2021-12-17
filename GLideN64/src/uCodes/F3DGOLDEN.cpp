@@ -17,13 +17,13 @@ u32 G_GOLDEN_MOVEWORD;
 void F3D_TriX(u32 w0, u32 w1)
 {
 	while(w1 != 0) {
-		u32 v0 = w1 & 0xf;
+		s32 v0 = w1 & 0xf;
 		w1 >>= 4;
 
-		u32 v1 = w1 & 0xf;
+		s32 v1 = w1 & 0xf;
 		w1 >>= 4;
 
-		u32 v2 = w0 & 0xf;
+		s32 v2 = w0 & 0xf;
 		w0 >>= 4;
 
 		gSPTriangle(v0, v1, v2);

@@ -1,6 +1,6 @@
 # Mupen64Plus-Next
 
-Mupen64Plus-Next is a N64 emulation library for the [libretro API](http://www.libretro.com/), based on Mupen64Plus (see below).
+Mupen64Plus-Next is N64 emulation library for the [libretro API](http://www.libretro.com/), based on Mupen64Plus (see below).
 
 It is also the successor of the old Mupen64Plus libretro core.
 
@@ -35,7 +35,7 @@ A special thanks to:
 - The Mupen64Plus Team, especially Gillou68310
 - gonetz and those that have worked on GLideN64, especially fzurita
 - The Authors of cxd4 and angrylion-rdp-plus (ata4)
-- themaister for parallel-rsp and parallel-rdp (including the Vulkan integration)
+- themaister for parallel-rsp
 - Everyone in the libretro Team
 
 

@@ -1,5 +1,5 @@
 #include "config-emulation.h"
-#include "util/util.h"
+#include "util.h"
 #include "../Config.h"
 #include "resource.h"
 #include "ConfigDlg.h"
@@ -21,12 +21,12 @@ BOOL CEmulationTab::OnInitDialog(CWindow /*wndFocus*/, LPARAM /*lInitParam*/)
 	nativeRes2DComboBox.AddString(wGS(EMULATION_RENDER_ENABLE_OPTIMIZED).c_str());
 	nativeRes2DComboBox.AddString(wGS(EMULATION_RENDER_ENABLE_UNOPTIMIZED).c_str());
 
-	m_GammaTxt.Attach(GetDlgItem(IDC_GAMMA_VALUE));
-	m_GammaSpin.Attach(GetDlgItem(IDC_GAMMA_SPIN));
-	m_GammaSpin.SetBase(10);
-	m_GammaSpin.SetRange(10, 40);
-	m_GammaSpin.SetPos(20);
-	m_GammaSpin.SetBuddy(m_GammaTxt);
+	m_GamaTxt.Attach(GetDlgItem(IDC_GAMMA_VALUE));
+	m_GamaSpin.Attach(GetDlgItem(IDC_GAMMA_SPIN));
+	m_GamaSpin.SetBase(10);
+	m_GamaSpin.SetRange(10, 40);
+	m_GamaSpin.SetPos(20);
+	m_GamaSpin.SetBuddy(m_GamaTxt);
 
 	m_N64ResMultiplerTxt.Attach(GetDlgItem(IDC_N64_RES_MULTIPLER_TXT));
 	m_N64ResMultiplerSpin.Attach(GetDlgItem(IDC_N64_RES_MULTIPLER_SPIN));
@@ -70,7 +70,6 @@ void CEmulationTab::ApplyLanguage(void)
 	SetDlgItemTextW(IDC_CHK_USE_PER_GAME, wGS(EMULATION_USE_PER_GAME).c_str());
 	SetDlgItemTextW(IDC_CHK_N64_STYLE_MIP_MAPPING, wGS(EMULATION_N64_STYLE_MIP_MAPPING).c_str());
 	SetDlgItemTextW(IDC_CHK_HWLIGHTING, wGS(EMULATION_HWLIGHTING).c_str());
-	SetDlgItemTextW(IDC_CHK_PIXEL_COVERAGE, wGS(EMULATION_PIXEL_COVERAGE).c_str());
 	SetDlgItemTextW(IDC_CHK_SHADERS_STORAGE, wGS(EMULATION_SHADERS_STORAGE).c_str());
 	SetDlgItemTextW(IDC_INTERNAL_RES_GROUP, wGS(EMULATION_INTERNAL_RES).c_str());
 	SetDlgItemTextW(IDC_FACTOR0X_RADIO, wGS(EMULATION_FACTOR0X).c_str());
@@ -96,8 +95,6 @@ void CEmulationTab::ApplyLanguage(void)
 	TTSetTxt(GetDlgItem(IDC_CHK_N64_STYLE_MIP_MAPPING), tooltip.c_str());
 	tooltip = wGS(EMULATION_HWLIGHTING_TOOLTIP);
 	TTSetTxt(GetDlgItem(IDC_CHK_HWLIGHTING), tooltip.c_str());
-	tooltip = wGS(EMULATION_PIXEL_COVERAGE_TOOLTIP);
-	TTSetTxt(GetDlgItem(IDC_CHK_PIXEL_COVERAGE), tooltip.c_str());
 	tooltip = wGS(EMULATION_SHADERS_STORAGE_TOOLTIP);
 	TTSetTxt(GetDlgItem(IDC_CHK_SHADERS_STORAGE), tooltip.c_str());
 	tooltip = wGS(EMULATION_INTERNAL_RES_TOOLTIP);
@@ -139,7 +136,6 @@ void CEmulationTab::LoadSettings(bool blockCustomSettings)
 	}
 	CButton(GetDlgItem(IDC_CHK_N64_STYLE_MIP_MAPPING)).SetCheck(config.generalEmulation.enableLOD != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_HWLIGHTING)).SetCheck(config.generalEmulation.enableHWLighting != 0 ? BST_CHECKED : BST_UNCHECKED);
-	CButton(GetDlgItem(IDC_CHK_PIXEL_COVERAGE)).SetCheck(config.generalEmulation.enableCoverage != 0 ? BST_CHECKED : BST_UNCHECKED);
 	CButton(GetDlgItem(IDC_CHK_SHADERS_STORAGE)).SetCheck(config.generalEmulation.enableShadersStorage != 0 ? BST_CHECKED : BST_UNCHECKED);
 	
 	CButton(GetDlgItem(IDC_CHK_HALOS_REMOVAL)).SetCheck(config.texture.enableHalosRemoval != 0 ? BST_CHECKED : BST_UNCHECKED);
@@ -155,8 +151,8 @@ void CEmulationTab::LoadSettings(bool blockCustomSettings)
 
 	CButton(GetDlgItem(IDC_CHK_GAMMA_CORRECTION)).SetCheck(config.gammaCorrection.force != 0 ? BST_CHECKED : BST_UNCHECKED);
 	int GammaPos = (int)(config.gammaCorrection.force != 0 ? config.gammaCorrection.level : 2.0) * 10;
-	m_GammaSpin.SetPos(GammaPos);
-	m_GammaTxt.SetWindowText(FormatStrW(L"%0.1f", (float)GammaPos / 10.0f).c_str());
+	m_GamaSpin.SetPos(GammaPos);
+	m_GamaTxt.SetWindowText(FormatStrW(L"%0.1f", (float)GammaPos / 10.0f).c_str());
 	GetDlgItem(IDC_GAMMA_ICON).ShowWindow(config.gammaCorrection.force != 0 ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_GAMMA_INFO).ShowWindow(config.gammaCorrection.force != 0 ? SW_SHOW : SW_HIDE);
  
@@ -172,7 +168,6 @@ void CEmulationTab::SaveSettings()
 	config.generalEmulation.enableCustomSettings = CButton(GetDlgItem(IDC_CHK_USE_PER_GAME)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.generalEmulation.enableLOD = CButton(GetDlgItem(IDC_CHK_N64_STYLE_MIP_MAPPING)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.generalEmulation.enableHWLighting = CButton(GetDlgItem(IDC_CHK_HWLIGHTING)).GetCheck() == BST_CHECKED ? 1 : 0;
-	config.generalEmulation.enableCoverage = CButton(GetDlgItem(IDC_CHK_PIXEL_COVERAGE)).GetCheck() == BST_CHECKED ? 1 : 0;
 	config.generalEmulation.enableShadersStorage = CButton(GetDlgItem(IDC_CHK_SHADERS_STORAGE)).GetCheck() == BST_CHECKED ? 1 : 0;
 	
 	if (CButton(GetDlgItem(IDC_FACTOR0X_RADIO)).GetCheck() == BST_CHECKED) {
@@ -183,7 +178,7 @@ void CEmulationTab::SaveSettings()
 		config.frameBufferEmulation.nativeResFactor = m_N64ResMultiplerSpin.GetPos();
 	}
 	config.gammaCorrection.force = CButton(GetDlgItem(IDC_CHK_GAMMA_CORRECTION)).GetCheck() == BST_CHECKED ? 1 : 0;
-	config.gammaCorrection.level = ((float)m_GammaSpin.GetPos()) / 10;
+	config.gammaCorrection.level = ((float)m_GamaSpin.GetPos()) / 10;
 	config.graphics2D.enableNativeResTexrects = CComboBox(GetDlgItem(IDC_CMB_NATIVE_RES_2D)).GetCurSel();
 	config.texture.enableHalosRemoval = CButton(GetDlgItem(IDC_CHK_HALOS_REMOVAL)).GetCheck() == BST_CHECKED ? 1 : 0;
 
@@ -206,8 +201,8 @@ LRESULT CEmulationTab::OnScroll(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam,
 {
 	LONG CtrlId = CWindow((HWND)lParam).GetWindowLong(GWL_ID);
 	if (CtrlId == IDC_GAMMA_SPIN) {
-		int Pos = m_GammaSpin.GetPos();
-		m_GammaTxt.SetWindowText(FormatStrW(L"%0.1f", (float)Pos / 10.0f).c_str());
+		int Pos = m_GamaSpin.GetPos();
+		m_GamaTxt.SetWindowText(FormatStrW(L"%0.1f", (float)Pos / 10.0f).c_str());
 	} else if (CtrlId == IDC_N64_RES_MULTIPLER_SPIN) {
 		int Pos = m_N64ResMultiplerSpin.GetPos();
 		m_N64ResMultiplerTxt.SetWindowText(FormatStrW(L"%dx", Pos).c_str());

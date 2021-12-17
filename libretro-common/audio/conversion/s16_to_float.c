@@ -29,13 +29,7 @@
 #include <features/features_cpu.h>
 #include <audio/conversion/s16_to_float.h>
 
-#if (defined(__ARM_NEON__) && !defined(DONT_WANT_ARM_OPTIMIZATIONS)) || defined(HAVE_NEON)
-#ifndef HAVE_ARM_NEON_OPTIMIZATIONS
-#define HAVE_ARM_NEON_OPTIMIZATIONS
-#endif
-#endif
-
-#if defined(HAVE_ARM_NEON_OPTIMIZATIONS)
+#if defined(__ARM_NEON__) && !defined(DONT_WANT_ARM_OPTIMIZATIONS)
 static bool s16_to_float_neon_enabled = false;
 
 /* Avoid potential hard-float/soft-float ABI issues. */
@@ -56,7 +50,7 @@ void convert_s16_float_asm(float *out, const int16_t *in,
 void convert_s16_to_float(float *out,
       const int16_t *in, size_t samples, float gain)
 {
-   unsigned i      = 0;
+   size_t i      = 0;
 
 #if defined(__SSE2__)
    float fgain   = gain / UINT32_C(0x80000000);
@@ -83,6 +77,7 @@ void convert_s16_to_float(float *out,
     * optimize for the good path (very likely). */
    if (((uintptr_t)out & 15) + ((uintptr_t)in & 15) == 0)
    {
+      size_t i;
       const vector float gain_vec = { gain, gain , gain, gain };
       const vector float zero_vec = { 0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -104,7 +99,7 @@ void convert_s16_to_float(float *out,
    samples = samples_in;
    i       = 0;
 
-#elif defined(HAVE_ARM_NEON_OPTIMIZATIONS)
+#elif defined(__ARM_NEON__) && !defined(DONT_WANT_ARM_OPTIMIZATIONS)
    if (s16_to_float_neon_enabled)
    {
       size_t aligned_samples = samples & ~7;
@@ -187,7 +182,7 @@ void convert_s16_to_float(float *out,
  **/
 void convert_s16_to_float_init_simd(void)
 {
-#if defined(HAVE_ARM_NEON_OPTIMIZATIONS)
+#if defined(__ARM_NEON__) && !defined(DONT_WANT_ARM_OPTIMIZATIONS)
    unsigned cpu = cpu_features_get();
 
    if (cpu & RETRO_SIMD_NEON)

@@ -88,9 +88,6 @@ bool string_list_find_elem_prefix(const struct string_list *list,
  */
 struct string_list *string_split(const char *str, const char *delim);
 
-bool string_split_noalloc(struct string_list *list,
-      const char *str, const char *delim);
-
 /**
  * string_separate:
  * @str              : string to turn into a string list
@@ -103,13 +100,6 @@ bool string_split_noalloc(struct string_list *list,
  * Returns: new string list if successful, otherwise NULL.
  */
 struct string_list *string_separate(char *str, const char *delim);
-
-bool string_separate_noalloc(struct string_list *list, 
-      char *str, const char *delim);
-
-bool string_list_deinitialize(struct string_list *list);
-
-bool string_list_initialize(struct string_list *list);
 
 /**
  * string_list_new:

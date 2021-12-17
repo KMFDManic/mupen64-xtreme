@@ -118,11 +118,9 @@ static void pak_read_block(struct game_controller* cont,
 
     if (cont->ipak != NULL) {
         cont->ipak->read(cont->pak, address, data, PAK_CHUNK_SIZE);
-        *dcrc = pak_data_crc(data, PAK_CHUNK_SIZE);
-    } else {
-        //NOT the CRC value when pak is not present
-        *dcrc = ~pak_data_crc(data, PAK_CHUNK_SIZE);
     }
+
+    *dcrc = pak_data_crc(data, PAK_CHUNK_SIZE);
 }
 
 static void pak_write_block(struct game_controller* cont,
@@ -135,10 +133,9 @@ static void pak_write_block(struct game_controller* cont,
 
     if (cont->ipak != NULL) {
         cont->ipak->write(cont->pak, address, data, PAK_CHUNK_SIZE);
-        *dcrc = pak_data_crc(data, PAK_CHUNK_SIZE);
-    } else {
-        *dcrc = ~pak_data_crc(data, PAK_CHUNK_SIZE);
     }
+
+    *dcrc = pak_data_crc(data, PAK_CHUNK_SIZE);
 }
 
 

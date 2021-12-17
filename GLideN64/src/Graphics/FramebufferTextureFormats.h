@@ -37,6 +37,9 @@ namespace graphics {
 		u32 noiseFormatBytes;
 
 		virtual ~FramebufferTextureFormats() {}
+
+	protected:
+		virtual void init() = 0;
 	};
 
 }

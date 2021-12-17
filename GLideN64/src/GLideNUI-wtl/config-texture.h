@@ -2,7 +2,6 @@
 #include "config-tab.h"
 #include "wtl-tooltip.h"
 #include "resource.h"
-#include "../osal/osal_files.h"
 
 class CTextureEnhancementTab :
 	public CConfigTab,

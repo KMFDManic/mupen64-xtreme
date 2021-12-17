@@ -84,22 +84,16 @@ public:
 		return has_timestamp;
 	}
 
-	bool is_device_timebase() const
-	{
-		return device_timebase;
-	}
-
 private:
 	friend class Util::ObjectPool<QueryPoolResult>;
 
-	explicit QueryPoolResult(Device *device_, bool device_timebase_)
-		: device(device_), device_timebase(device_timebase_)
+	explicit QueryPoolResult(Device *device_)
+		: device(device_)
 	{}
 
 	Device *device;
 	uint64_t timestamp_ticks = 0;
 	bool has_timestamp = false;
-	bool device_timebase = false;
 };
 
 using QueryPoolHandle = Util::IntrusivePtr<QueryPoolResult>;
@@ -142,7 +136,6 @@ public:
 
 	void accumulate_time(double t);
 	double get_time_per_iteration() const;
-	double get_time_per_accumulation() const;
 	const std::string &get_tag() const;
 	void mark_end_of_frame_context();
 

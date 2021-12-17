@@ -69,9 +69,6 @@ typedef struct
 
 struct retro_task
 {
-   /* when the task should run (0 for as soon as possible) */
-   retro_time_t when;
-
    retro_task_handler_t  handler;
 
    /* always called from the main loop */
@@ -80,6 +77,17 @@ struct retro_task
    /* task cleanup handler to free allocated resources, will
     * be called immediately after running the main callback */
    retro_task_handler_t cleanup;
+
+   /* set to true by the handler to signal
+    * the task has finished executing. */
+   bool finished;
+
+   /* set to true by the task system
+    * to signal the task *must* end. */
+   bool cancelled;
+
+   /* if true no OSD messages will be displayed. */
+   bool mute;
 
    /* created by the handler, destroyed by the user */
    void *task_data;
@@ -94,42 +102,34 @@ struct retro_task
     * (after calling the callback) */
    char *error;
 
+   /* -1 = unmetered/indeterminate, 0-100 = current progress percentage */
+   int8_t progress;
+
    void (*progress_cb)(retro_task_t*);
 
    /* handler can modify but will be
     * free()d automatically if non-NULL. */
    char *title;
 
-   /* frontend userdata
-    * (e.g. associate a sticky notification to a task) */
-   void *frontend_userdata;
-
-   /* don't touch this. */
-   retro_task_t *next;
-
-   /* -1 = unmetered/indeterminate, 0-100 = current progress percentage */
-   int8_t progress;
+   enum task_type type;
 
    /* task identifier */
    uint32_t ident;
 
-   enum task_type type;
+   /* frontend userdata
+    * (e.g. associate a sticky notification to a task) */
+   void *frontend_userdata;
 
    /* if set to true, frontend will
    use an alternative look for the
    task progress display */
    bool alternative_look;
 
-   /* set to true by the handler to signal
-    * the task has finished executing. */
-   bool finished;
+   /* don't touch this. */
+   retro_task_t *next;
 
-   /* set to true by the task system
-    * to signal the task *must* end. */
-   bool cancelled;
-
-   /* if true no OSD messages will be displayed. */
-   bool mute;
+   /* when the task should run (0 for as soon as possible) */
+   retro_time_t when;
 };
 
 typedef struct task_finder_data
@@ -146,10 +146,10 @@ typedef struct task_retriever_info
 
 typedef struct task_retriever_data
 {
-   task_retriever_info_t *list;
    retro_task_handler_t handler;
-   retro_task_retriever_t func;
    size_t element_size;
+   retro_task_retriever_t func;
+   task_retriever_info_t *list;
 } task_retriever_data_t;
 
 void *task_queue_retriever_info_next(task_retriever_info_t **link);
@@ -224,8 +224,8 @@ void task_queue_check(void);
  * and the task will be ignored. */
 bool task_queue_push(retro_task_t *task);
 
-/* Blocks until all non-scheduled tasks have finished.
- * Will return early if cond is not NULL
+/* Blocks until all tasks have finished
+ * will return early if cond is not NULL
  * and cond(data) returns false.
  * This must only be called from the main thread. */
 void task_queue_wait(retro_task_condition_fn_t cond, void* data);

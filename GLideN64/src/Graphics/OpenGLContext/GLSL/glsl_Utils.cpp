@@ -7,14 +7,8 @@ using namespace glsl;
 
 void Utils::locateAttributes(GLuint _program, bool _rect, bool _textures)
 {
-	static GLint maxVertexAttribs = 0;
-	if (maxVertexAttribs == 0)
-		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertexAttribs);
-
 	if (_rect) {
 		glBindAttribLocation(_program, opengl::rectAttrib::position, "aRectPosition");
-		if (opengl::rectAttrib::barycoords < static_cast<u32>(maxVertexAttribs))
-			glBindAttribLocation(_program, opengl::rectAttrib::barycoords, "aBaryCoords");
 		if (_textures) {
 			glBindAttribLocation(_program, opengl::rectAttrib::texcoord0, "aTexCoord0");
 			glBindAttribLocation(_program, opengl::rectAttrib::texcoord1, "aTexCoord1");
@@ -26,8 +20,6 @@ void Utils::locateAttributes(GLuint _program, bool _rect, bool _textures)
 	glBindAttribLocation(_program, opengl::triangleAttrib::color, "aColor");
 	glBindAttribLocation(_program, opengl::triangleAttrib::numlights, "aNumLights");
 	glBindAttribLocation(_program, opengl::triangleAttrib::modify, "aModify");
-	if (opengl::triangleAttrib::barycoords < static_cast<u32>(maxVertexAttribs))
-		glBindAttribLocation(_program, opengl::triangleAttrib::barycoords, "aBaryCoords");
 	if (_textures)
 		glBindAttribLocation(_program, opengl::triangleAttrib::texcoord, "aTexCoord");
 }
@@ -52,9 +44,9 @@ bool Utils::checkShaderCompileStatus(GLuint obj)
 	return true;
 }
 
-static
-bool _checkProgramLinkStatus(GLuint obj)
+bool Utils::checkProgramLinkStatus(GLuint obj)
 {
+#ifdef GL_DEBUG
 	GLint status;
 	glGetProgramiv(obj, GL_LINK_STATUS, &status);
 	if (status == GL_FALSE) {
@@ -64,18 +56,8 @@ bool _checkProgramLinkStatus(GLuint obj)
 		LOG(LOG_ERROR, "shader_link error: %s", shader_log);
 		return false;
 	}
-	return true;
-}
-
-bool Utils::checkProgramLinkStatus(GLuint obj, bool _force)
-{
-#ifdef GL_DEBUG
-	return _checkProgramLinkStatus(obj);
-#else
-	if (_force)
-		return _checkProgramLinkStatus(obj);
-	return true;
 #endif
+	return true;
 }
 
 void Utils::logErrorShader(GLenum _shaderType, const std::string & _strShader)

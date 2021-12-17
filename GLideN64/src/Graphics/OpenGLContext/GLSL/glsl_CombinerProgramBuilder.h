@@ -39,7 +39,6 @@ namespace glsl {
 		typedef std::unique_ptr<ShaderPart> ShaderPartPtr;
 		ShaderPartPtr m_blender1;
 		ShaderPartPtr m_blender2;
-		ShaderPartPtr m_blenderAlpha;
 		ShaderPartPtr m_legacyBlender;
 		ShaderPartPtr m_clamp;
 		ShaderPartPtr m_signExtendColorC;
@@ -74,7 +73,6 @@ namespace glsl {
 		ShaderPartPtr m_fragmentBlendMux;
 		ShaderPartPtr m_fragmentReadTex0;
 		ShaderPartPtr m_fragmentReadTex1;
-		ShaderPartPtr m_fragmentCorrectTexCoords;
 		ShaderPartPtr m_fragmentTextureEngineTex0;
 		ShaderPartPtr m_fragmentTextureEngineTex1;
 		ShaderPartPtr m_fragmentReadTexCopyMode;
@@ -93,7 +91,6 @@ namespace glsl {
 		ShaderPartPtr m_shaderN64DepthCompare;
 		ShaderPartPtr m_shaderN64DepthRender;
 		ShaderPartPtr m_shaderTextureEngine;
-		ShaderPartPtr m_shaderCoverage;
 
 		std::unique_ptr<CombinerProgramUniformFactory> m_uniformFactory;
 
@@ -103,7 +100,6 @@ namespace glsl {
 		GLuint  m_vertexShaderTexturedTriangle;
 		opengl::CachedUseProgram * m_useProgram;
 		u32 m_combinerOptionsBits;
-		bool m_useCoverage = false;
 	};
 
 }

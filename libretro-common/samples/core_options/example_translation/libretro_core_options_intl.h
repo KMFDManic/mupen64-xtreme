@@ -116,8 +116,6 @@ struct retro_core_option_definition option_defs_fr[] = {
 
 /* RETRO_LANGUAGE_ASTURIAN */
 
-/* RETRO_LANGUAGE_FINNISH */
-
 #ifdef __cplusplus
 }
 #endif

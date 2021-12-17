@@ -29,14 +29,20 @@
 #include <compat/posix_string.h>
 #include <string/stdstring.h>
 
-static bool string_list_deinitialize_internal(struct string_list *list)
+/**
+ * string_list_free
+ * @list             : pointer to string list object
+ *
+ * Frees a string list.
+ */
+void string_list_free(struct string_list *list)
 {
+   size_t i;
    if (!list)
-      return false;
+      return;
 
    if (list->elems)
    {
-      unsigned i;
       for (i = 0; i < list->size; i++)
       {
          if (list->elems[i].data)
@@ -51,8 +57,7 @@ static bool string_list_deinitialize_internal(struct string_list *list)
    }
 
    list->elems = NULL;
-
-   return true;
+   free(list);
 }
 
 /**
@@ -81,34 +86,6 @@ static bool string_list_capacity(struct string_list *list, size_t cap)
 }
 
 /**
- * string_list_free
- * @list             : pointer to string list object
- *
- * Frees a string list.
- */
-void string_list_free(struct string_list *list)
-{
-   if (!list)
-      return;
-
-   string_list_deinitialize_internal(list);
-
-   free(list);
-}
-
-bool string_list_deinitialize(struct string_list *list)
-{
-   if (!list)
-      return false;
-   if (!string_list_deinitialize_internal(list))
-      return false;
-   list->elems              = NULL;
-   list->size               = 0;
-   list->cap                = 0;
-   return true;
-}
-
-/**
  * string_list_new:
  *
  * Creates a new string list. Has to be freed manually.
@@ -117,43 +94,19 @@ bool string_list_deinitialize(struct string_list *list)
  */
 struct string_list *string_list_new(void)
 {
-   struct string_list_elem *
-      elems                 = NULL;
    struct string_list *list = (struct string_list*)
-      malloc(sizeof(*list));
+      calloc(1, sizeof(*list));
+
    if (!list)
       return NULL;
 
-   if (!(elems = (struct string_list_elem*)
-      calloc(32, sizeof(*elems))))
+   if (!string_list_capacity(list, 32))
    {
       string_list_free(list);
       return NULL;
    }
 
-   list->elems              = elems;
-   list->size               = 0;
-   list->cap                = 32;
-
    return list;
-}
-
-bool string_list_initialize(struct string_list *list)
-{
-   struct string_list_elem *
-      elems                 = NULL;
-   if (!list)
-      return false;
-   if (!(elems = (struct string_list_elem*)
-      calloc(32, sizeof(*elems))))
-   {
-      string_list_deinitialize(list);
-      return false;
-   }
-   list->elems              = elems;
-   list->size               = 0;
-   list->cap                = 32;
-   return true;
 }
 
 /**
@@ -171,15 +124,8 @@ bool string_list_append(struct string_list *list, const char *elem,
 {
    char *data_dup = NULL;
 
-   /* Note: If 'list' is incorrectly initialised
-    * (i.e. if struct is zero initialised and
-    * string_list_initialize() is not called on
-    * it) capacity will be zero. This will cause
-    * a segfault. Handle this case by forcing the new
-    * capacity to a fixed size of 32 */
    if (list->size >= list->cap &&
-         !string_list_capacity(list,
-               (list->cap > 0) ? (list->cap * 2) : 32))
+         !string_list_capacity(list, list->cap * 2))
       return false;
 
    data_dup = strdup(elem);
@@ -255,18 +201,7 @@ void string_list_set(struct string_list *list,
 void string_list_join_concat(char *buffer, size_t size,
       const struct string_list *list, const char *delim)
 {
-   size_t i;
-   size_t len = strlen_size(buffer, size);
-
-   /* If buffer is already 'full', nothing
-    * further can be added
-    * > This condition will also be triggered
-    *   if buffer is not NUL-terminated,
-    *   in which case any attempt to increment
-    *   buffer or decrement size would lead to
-    *   undefined behaviour */
-   if (len >= size)
-      return;
+   size_t i, len = strlen(buffer);
 
    buffer += len;
    size   -= len;
@@ -296,7 +231,7 @@ struct string_list *string_split(const char *str, const char *delim)
    struct string_list *list = string_list_new();
 
    if (!list)
-      return NULL;
+      goto error;
 
    copy = strdup(str);
    if (!copy)
@@ -322,40 +257,6 @@ error:
    string_list_free(list);
    free(copy);
    return NULL;
-}
-
-bool string_split_noalloc(struct string_list *list,
-      const char *str, const char *delim)
-{
-   char *save      = NULL;
-   char *copy      = NULL;
-   const char *tmp = NULL;
-
-   if (!list)
-      return false;
-
-   copy            = strdup(str);
-   if (!copy)
-      return false;
-
-   tmp             = strtok_r(copy, delim, &save);
-   while (tmp)
-   {
-      union string_list_elem_attr attr;
-
-      attr.i = 0;
-
-      if (!string_list_append(list, tmp, attr))
-      {
-         free(copy);
-         return false;
-      }
-
-      tmp = strtok_r(NULL, delim, &save);
-   }
-
-   free(copy);
-   return true;
 }
 
 /**
@@ -409,39 +310,6 @@ error:
    if (list)
       string_list_free(list);
    return NULL;
-}
-
-bool string_separate_noalloc(
-      struct string_list *list,
-      char *str, const char *delim)
-{
-   char *token              = NULL;
-   char **str_ptr           = NULL;
-
-   /* Sanity check */
-   if (!str || string_is_empty(delim) || !list)
-      return false;
-
-   str_ptr = &str;
-   token   = string_tokenize(str_ptr, delim);
-
-   while (token)
-   {
-      union string_list_elem_attr attr;
-
-      attr.i = 0;
-
-      if (!string_list_append(list, token, attr))
-      {
-         free(token);
-         return false;
-      }
-
-      free(token);
-      token = string_tokenize(str_ptr, delim);
-   }
-
-   return true;
 }
 
 /**
@@ -508,22 +376,19 @@ struct string_list *string_list_clone(
       const struct string_list *src)
 {
    unsigned i;
-   struct string_list_elem 
-      *elems              = NULL;
-   struct string_list 
-      *dest               = (struct string_list*)
-      malloc(sizeof(struct string_list));
+   struct string_list_elem *elems = NULL;
+   struct string_list *dest       = (struct string_list*)
+      calloc(1, sizeof(struct string_list));
 
    if (!dest)
       return NULL;
 
-   dest->elems            = NULL;
-   dest->size             = src->size;
-   dest->cap              = src->cap;
+   dest->size      = src->size;
+   dest->cap       = src->cap;
    if (dest->cap < dest->size)
-      dest->cap           = dest->size;
+      dest->cap    = dest->size;
 
-   elems                  = (struct string_list_elem*)
+   elems           = (struct string_list_elem*)
       calloc(dest->cap, sizeof(struct string_list_elem));
 
    if (!elems)

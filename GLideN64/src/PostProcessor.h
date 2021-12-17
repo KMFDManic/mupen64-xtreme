@@ -30,6 +30,7 @@ private:
 	PostProcessor(const PostProcessor & _other) = delete;
 
 	FrameBuffer * _doGammaCorrection(FrameBuffer * _pBuffer);
+	FrameBuffer * _doOrientationCorrection(FrameBuffer * _pBuffer);
 	FrameBuffer * _doFXAA(FrameBuffer * _pBuffer);
 
 	void _createResultBuffer(const FrameBuffer * _pMainBuffer);
@@ -38,6 +39,7 @@ private:
 	FrameBuffer * _doPostProcessing(FrameBuffer * _pBuffer, graphics::ShaderProgram * _pShader);
 
 	std::unique_ptr<graphics::ShaderProgram> m_gammaCorrectionProgram;
+	std::unique_ptr<graphics::ShaderProgram> m_orientationCorrectionProgram;
 	std::unique_ptr<graphics::ShaderProgram> m_FXAAProgram;
 	std::unique_ptr<FrameBuffer> m_pResultBuffer;
 	CachedTexture * m_pTextureOriginal;

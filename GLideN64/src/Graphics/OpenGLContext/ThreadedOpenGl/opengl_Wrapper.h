@@ -60,7 +60,6 @@ namespace opengl {
 		static void setThreadedMode(u32 _threaded);
 
 		static void wrBlendFunc(GLenum sfactor, GLenum dfactor);
-		static void wrBlendFuncSeparate(GLenum sfactorcolor, GLenum dfactorcolor, GLenum sfactoralpha, GLenum dfactoralpha);
 		static void wrPixelStorei(GLenum pname, GLint param);
 		static void wrClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
 		static void wrCullFace(GLenum mode);
@@ -207,7 +206,6 @@ namespace opengl {
 		static m64p_error CoreVideo_Init();
 		static void CoreVideo_Quit();
 		static m64p_error CoreVideo_SetVideoMode(int screenWidth, int screenHeight, int bitsPerPixel, m64p_video_mode mode, m64p_video_flags flags);
-		static m64p_error CoreVideo_SetVideoModeWithRate(int screenWidth, int screenHeight, int refreshRate, int bitsPerPixel, m64p_video_mode mode, m64p_video_flags flags);
 		static void CoreVideo_GL_SetAttribute(m64p_GLattr attribute, int value);
 		static void CoreVideo_GL_GetAttribute(m64p_GLattr attribute, int *value);
 		static void CoreVideo_GL_SwapBuffers();

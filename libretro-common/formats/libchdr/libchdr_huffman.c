@@ -335,8 +335,7 @@ enum huffman_error huffman_compute_tree_from_histo(struct huffman_decoder* decod
 
 	/* binary search to achieve the optimum encoding */
 	upperweight = sdatacount * 2;
-
-   for (;;)
+	while (1)
 	{
 		/* build a tree using the current weight */
 		uint32_t curweight = (upperweight + lowerweight) / 2;
@@ -549,13 +548,16 @@ void huffman_build_lookup_table(struct huffman_decoder* decoder)
 		struct node_t* node = &decoder->huffnode[curcode];
 		if (node->numbits > 0)
 		{
+         int shift;
+         lookup_value *dest;
+         lookup_value *destend;
 			/* set up the entry */
 			lookup_value value = MAKE_LOOKUP(curcode, node->numbits);
 
 			/* fill all matching entries */
-			int shift          = decoder->maxbits - node->numbits;
-			lookup_value *dest = &decoder->lookup[node->bits << shift];
-			lookup_value *destend = &decoder->lookup[((node->bits + 1) << shift) - 1];
+			shift = decoder->maxbits - node->numbits;
+			dest = &decoder->lookup[node->bits << shift];
+			destend = &decoder->lookup[((node->bits + 1) << shift) - 1];
 			while (dest <= destend)
 				*dest++ = value;
 		}
