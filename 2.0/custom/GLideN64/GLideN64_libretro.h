@@ -64,6 +64,7 @@ extern uint32_t EnableLODEmulation;
 extern uint32_t EnableFullspeed;
 extern uint32_t CountPerOp;
 extern uint32_t CountPerScanlineOverride;
+extern uint32_t GLideN64IniBehaviour;
 
 // Overscan Options
 extern uint32_t EnableOverscan;
