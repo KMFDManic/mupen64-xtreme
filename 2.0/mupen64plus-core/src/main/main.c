@@ -719,6 +719,15 @@ static void load_dd_rom(uint8_t* rom, size_t* rom_size)
 
     dd_ipl_rom_filename = pathname;
 
+    if(retro_dd_path_img)
+    {
+        dd_ipl_rom_filename = pathname;
+    }
+    else
+    {
+        dd_ipl_rom_filename = NULL;
+    }
+
     if ((dd_ipl_rom_filename == NULL) || (strlen(dd_ipl_rom_filename) == 0)) {
         goto no_dd;
     }
@@ -773,8 +782,6 @@ no_dd:
     *rom_size = 0;
 }
 
-extern char* retro_dd_path_img;
-extern char* retro_dd_path_rom;
 static void load_dd_disk(struct file_storage* dd_disk, const struct storage_backend_interface** dd_idisk)
 {
     const char* format_desc;
