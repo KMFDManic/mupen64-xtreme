@@ -85,6 +85,8 @@
 #include "../../../libretro/libretro_memory.h"
 #include "../../../custom/GLideN64/GLideN64_libretro.h"
 extern retro_environment_t environ_cb;
+extern char* retro_dd_path_img;
+extern char* retro_dd_path_rom;
 #endif // __LIBRETRO__
 
 #ifdef DBG
@@ -716,8 +718,6 @@ static void load_dd_rom(uint8_t* rom, size_t* rom_size)
     strcat(pathname, "Mupen64plus");
     strcat(pathname, path_default_slash());
     strcat(pathname, "IPL.n64");
-
-    dd_ipl_rom_filename = pathname;
 
     if(retro_dd_path_img)
     {
