@@ -22,11 +22,7 @@
     <ProjectGuid>{37CAB375-A7A6-3CAB-BD56-0E954D3FD2FE}</ProjectGuid>
     <RootNamespace>GLideNUI</RootNamespace>
     <Keyword>Qt4VSv1.0</Keyword>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(WindowsTargetPlatformVersion)'=='' and '$(VisualStudioVersion)' != '12.0' and '$(VisualStudioVersion)' != '14.0'">
-    <LatestTargetPlatformVersion>$([Microsoft.Build.Utilities.ToolLocationHelper]::GetLatestSDKTargetPlatformVersion('Windows', '10.0'))</LatestTargetPlatformVersion>
-    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
-    <TargetPlatformVersion>$(WindowsTargetPlatformVersion)</TargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -172,7 +168,7 @@ endlocal
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\src\GLideNUI\Resources\Icon.ico">
+    <None Include="..\..\src\GLideNUI\Icon.ico">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </None>
     <CustomBuild Include="..\..\src\GLideNUI\icon.qrc">
@@ -187,7 +183,7 @@ endlocal
   <ImportGroup Label="ExtensionTargets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties UicDir=".\GeneratedFiles" RccDir=".\GeneratedFiles" Qt5Version_x0020_Win32="$(DefaultQtVersion)" />
+      <UserProperties UicDir=".\GeneratedFiles" RccDir=".\GeneratedFiles" Qt5Version_x0020_Win32="qt-5_7_1-x86-msvc2015-static" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

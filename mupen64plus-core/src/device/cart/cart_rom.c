@@ -27,29 +27,27 @@
 
 #include "device/memory/memory.h"
 #include "device/r4300/r4300_core.h"
-#include "device/rcp/pi/pi_controller.h"
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#define CART_ROM_ADDR_MASK UINT32_C(0x03ffffff);
+#define CART_ROM_ADDR_MASK UINT32_C(0x0fffffff);
 
 
 void init_cart_rom(struct cart_rom* cart_rom,
                    uint8_t* rom, size_t rom_size,
-                   struct r4300_core* r4300,
-                   struct pi_controller* pi)
+                   struct r4300_core* r4300)
 {
     cart_rom->rom = rom;
     cart_rom->rom_size = rom_size;
 
     cart_rom->r4300 = r4300;
-    cart_rom->pi = pi;
 }
 
 void poweron_cart_rom(struct cart_rom* cart_rom)
 {
     cart_rom->last_write = 0;
+    cart_rom->rom_written = 0;
 }
 
 
@@ -58,9 +56,10 @@ void read_cart_rom(void* opaque, uint32_t address, uint32_t* value)
     struct cart_rom* cart_rom = (struct cart_rom*)opaque;
     uint32_t addr = rom_address(address);
 
-    if (cart_rom->pi->regs[PI_STATUS_REG] & PI_STATUS_IO_BUSY)
+    if (cart_rom->rom_written)
     {
         *value = cart_rom->last_write;
+        cart_rom->rom_written = 0;
     }
     else
     {
@@ -72,14 +71,7 @@ void write_cart_rom(void* opaque, uint32_t address, uint32_t value, uint32_t mas
 {
     struct cart_rom* cart_rom = (struct cart_rom*)opaque;
     cart_rom->last_write = value & mask;
-
-    if (!validate_pi_request(cart_rom->pi))
-        return;
-
-    /* Mark IO as busy */
-    cart_rom->pi->regs[PI_STATUS_REG] |= PI_STATUS_IO_BUSY;
-    cp0_update_count(cart_rom->r4300);
-    add_interrupt_event(&cart_rom->r4300->cp0, PI_INT, 0x1000);
+    cart_rom->rom_written = 1;
 }
 
 unsigned int cart_rom_dma_read(void* opaque, const uint8_t* dram, uint32_t dram_addr, uint32_t cart_addr, uint32_t length)

@@ -82,6 +82,10 @@ void BufferedDrawer::_updateBuffer(Buffer & _buffer, u32 _count, u32 _dataSize, 
 
 	if (m_glInfo.bufferStorage) {
 		memcpy(&_buffer.data[_buffer.offset], _data, _dataSize);
+#ifdef GL_DEBUG
+		m_bindBuffer->bind(Parameter(_buffer.type), ObjectHandle(_buffer.handle));
+		glFlushMappedBufferRange(_buffer.type, _buffer.offset, _dataSize);
+#endif
 	} else {
 		m_bindBuffer->bind(Parameter(_buffer.type), ObjectHandle(_buffer.handle));
 		void* buffer_pointer = glMapBufferRange(_buffer.type, _buffer.offset, _dataSize, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
@@ -109,7 +113,7 @@ void BufferedDrawer::_updateRectBuffer(const graphics::Context::DrawRectParamete
 		return;
 	}
 
-	const u64 crc = CRC_Calculate(UINT64_MAX, _params.vertices, dataSize);
+	const u32 crc = CRC_Calculate(0xFFFFFFFF, _params.vertices, dataSize);
 	auto iter = m_rectBufferOffsets.find(crc);
 	if (iter != m_rectBufferOffsets.end()) {
 		buffer.pos = iter->second;
@@ -194,41 +198,13 @@ void BufferedDrawer::drawTriangles(const graphics::Context::DrawTriangleParamete
 	if (isHWLightingAllowed())
 		glVertexAttrib1f(triangleAttrib::numlights, GLfloat(_params.vertices[0].HWLight));
 
-	if (config.frameBufferEmulation.N64DepthCompare != Config::dcCompatible) {
-		if (_params.elements == nullptr) {
-			glDrawArrays(GLenum(_params.mode), m_trisBuffers.vbo.pos - _params.verticesCount, _params.verticesCount);
-			return;
-		}
-
-		glDrawRangeElementsBaseVertex(GLenum(_params.mode), 0, _params.verticesCount - 1, _params.elementsCount, GL_UNSIGNED_SHORT,
-			(u16*)nullptr + m_trisBuffers.ebo.pos - _params.elementsCount, m_trisBuffers.vbo.pos - _params.verticesCount);
-		return;
-	}
-
-	// Draw polygons one by one
-
 	if (_params.elements == nullptr) {
-		const GLint vboStartPos = m_trisBuffers.vbo.pos - _params.verticesCount;
-		if (_params.mode != graphics::drawmode::TRIANGLES) {
-			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-			glDrawArrays(GLenum(_params.mode), m_trisBuffers.vbo.pos - _params.verticesCount, _params.verticesCount);
-			return;
-		}
-
-		for (GLint i = 0; i < GLint(_params.verticesCount); i += 3) {
-			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-			glDrawArrays(GLenum(_params.mode), vboStartPos + i, 3);
-		}
+		glDrawArrays(GLenum(_params.mode), m_trisBuffers.vbo.pos - _params.verticesCount, _params.verticesCount);
 		return;
 	}
 
-	const GLint eboStartPos = m_trisBuffers.ebo.pos - _params.elementsCount;
-	const GLint vboStartPos = m_trisBuffers.vbo.pos - _params.verticesCount;
-	for (GLint i = 0; i < GLint(_params.elementsCount); i += 3) {
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-		glDrawRangeElementsBaseVertex(GLenum(_params.mode), i, i + 2, 3, GL_UNSIGNED_SHORT,
-			(u16*)nullptr + eboStartPos + i, vboStartPos);
-	}
+	glDrawRangeElementsBaseVertex(GLenum(_params.mode), 0, _params.verticesCount - 1, _params.elementsCount, GL_UNSIGNED_SHORT,
+		(u16*)nullptr + m_trisBuffers.ebo.pos - _params.elementsCount, m_trisBuffers.vbo.pos - _params.verticesCount);
 }
 
 void BufferedDrawer::drawLine(f32 _width, SPVertex * _vertices)

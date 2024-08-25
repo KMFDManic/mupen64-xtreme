@@ -82,8 +82,11 @@
 
 #ifdef __LIBRETRO__
 #include <file/file_path.h>
-#include <libretro_memory.h>
-#include <mupen64plus-next_common.h>
+#include "../../../libretro/libretro_memory.h"
+#include "../../../custom/GLideN64/GLideN64_libretro.h"
+extern retro_environment_t environ_cb;
+extern char* retro_dd_path_img;
+extern char* retro_dd_path_rom;
 #endif // __LIBRETRO__
 
 #ifdef DBG
@@ -199,11 +202,7 @@ static void main_check_inputs(void)
 #ifdef WITH_LIRC
     lircCheckInput();
 #endif
-    if(!(current_rdp_type == RDP_PLUGIN_GLIDEN64 && EnableThreadedRenderer))
-    {
-        // Input Polling will be forced to early if Threaded GLideN64
-        poll_cb();
-    }
+poll_cb();
 }
 
 /*********************************************************************************************************
@@ -1000,9 +999,10 @@ extern rsp_plugin_functions rsp_hle;
 extern input_plugin_functions dummy_input;
 extern audio_plugin_functions dummy_audio;
 
-unsigned int r4300_emumode;
+unsigned int emumode;
 
 uint32_t rdram_size;
+
 struct file_storage eep;
 struct file_storage fla;
 struct file_storage sra;
@@ -1033,9 +1033,6 @@ m64p_error main_run(void)
 
     count_per_op = CountPerOp;
     disable_extra_mem = ROM_PARAMS.disableextramem;
-
-    if (ForceDisableExtraMem == 1)
-        disable_extra_mem = 1;
 
     rdram_size = (disable_extra_mem == 0) ? 0x800000 : 0x400000;
 
@@ -1249,7 +1246,7 @@ m64p_error main_run(void)
 
     init_device(&g_dev,
                 g_mem_base,
-                r4300_emumode,
+                emumode,
                 count_per_op,
                 no_compiled_jump,
                 randomize_interrupt,
@@ -1328,12 +1325,7 @@ m64p_error main_run(void)
      * Jump back to frontend for deinit
      */
     extern cothread_t retro_thread;
-
-    // For GLN64 Threaded GL we just sanely return, exit sync is handled elsewhere
-    if(!(current_rdp_type == RDP_PLUGIN_GLIDEN64 && EnableThreadedRenderer))
-    {
-        co_switch(retro_thread);
-    }
+    co_switch(retro_thread);
 
     return M64ERR_SUCCESS;
 

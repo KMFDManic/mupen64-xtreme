@@ -5,7 +5,7 @@
 #include "Types.h"
 
 #define CONFIG_WITH_PROFILES 23U
-#define CONFIG_VERSION_CURRENT 29U
+#define CONFIG_VERSION_CURRENT 26U
 
 #define BILINEAR_3POINT   0
 #define BILINEAR_STANDARD 1
@@ -46,24 +46,13 @@ struct Config
 		tcForce
 	};
 
-	enum BufferDitheringMode {
-		bdmDisable = 0,
-		bdmBayer,
-		bdmMagicSquare,
-		bdmBlueNoise
-	};
-
 	struct {
-		u32 enableDitheringPattern;
-		u32 enableDitheringQuantization;
-		u32 enableHiresNoiseDithering;
-		u32 rdramImageDitheringMode;
+		u32 enableNoise;
 		u32 enableLOD;
 		u32 enableHWLighting;
 		u32 enableCustomSettings;
 		u32 enableShadersStorage;
 		u32 enableLegacyBlending;
-		u32 enableHybridFilter;
 		u32 enableFragmentDepthWrite;
 		u32 enableBlitScreenWorkaround;
 		u32 hacks;
@@ -77,12 +66,6 @@ struct Config
 	enum BGMode {
 		bgOnePiece = 0,
 		bgStripped = 1
-	};
-
-	enum NativeResTexrectsMode {
-		ntDisable = 0,
-		ntOptimized,
-		ntUnptimized
 	};
 
 	struct {
@@ -118,12 +101,6 @@ struct Config
 		cdSoftwareRender = 2
 	};
 
-	enum N64DepthCompareMode {
-		dcDisable = 0,
-		dcFast,
-		dcCompatible
-	};
-
 	struct {
 		u32 enable;
 		u32 aspect; // 0: stretch ; 1: 4/3 ; 2: 16/9; 3: adjust
@@ -142,9 +119,6 @@ struct Config
 		u32 fbInfoDisabled;
 		u32 fbInfoReadColorChunk;
 		u32 fbInfoReadDepthChunk;
-
-		// Depth buffer copy. For Reshade.
-		u32 copyDepthToMainDepthBuffer;
 
 		// Overscan
 		u32 enableOverscan;
@@ -172,9 +146,6 @@ struct Config
 		u32 txForce16bpp;				// Force use 16bit color textures
 		u32 txCacheCompression;			// Zip textures cache
 		u32 txSaveCache;				// Save texture cache to hard disk
-
-		u32 txEnhancedTextureFileStorage;	// Use file storage instead of memory cache for enhanced textures.
-		u32 txHiresTextureFileStorage;		// Use file storage instead of memory cache for hires textures.
 
 		wchar_t txPath[PLUGIN_PATH_SIZE]; // Path to texture packs
 		wchar_t txCachePath[PLUGIN_PATH_SIZE]; // Path to store texture cache, that is .htc files

@@ -133,36 +133,14 @@ static int CurrentShotIndex;
 static char *GetNextScreenshotPath(void)
 {
     char *ScreenshotPath;
-    char ScreenshotFileName[60 + 8 + 1];
+    char ScreenshotFileName[20 + 8 + 1];
     char *pch;
 
-    // if there are any characters in the ROM header name with the highest bit set,
-    // we assume it's encoded in Shift-JIS character set, and translate it to UTF-8
-    const unsigned char *pccNameChar = (unsigned char *) ROM_PARAMS.headername;
-    while (*pccNameChar != 0)
-    {
-        if ((*pccNameChar & 0x80) == 0x80)
-            break;
-        pccNameChar++;
-    }
-    if (*pccNameChar == 0)
-    {
-        // generate the base name of the screenshot
-        // add the ROM name, convert to lowercase, convert spaces to underscores
-        strcpy(ScreenshotFileName, ROM_PARAMS.headername);
-        for (pch = ScreenshotFileName; *pch != '\0'; pch++)
-            *pch = ((*pch == ' ') || (*pch == ':')) ? '_' : tolower(*pch);
-    }
-    else
-    {
-        ShiftJis2UTF8((unsigned char *) ROM_PARAMS.headername, (unsigned char *) ScreenshotFileName, sizeof(ScreenshotFileName));
-        for (pch = ScreenshotFileName; *pch != '\0'; pch++)
-        {
-            if (*pch == ' ' || *pch == ':')
-                *pch = '_';
-        }
-    }
-
+    // generate the base name of the screenshot
+    // add the ROM name, convert to lowercase, convert spaces to underscores
+    strcpy(ScreenshotFileName, ROM_PARAMS.headername);
+    for (pch = ScreenshotFileName; *pch != '\0'; pch++)
+        *pch = ((*pch == ' ') || (*pch == ':')) ? '_' : tolower(*pch);
     strcat(ScreenshotFileName, "-###.png");
     
     // add the base path to the screenshot file name

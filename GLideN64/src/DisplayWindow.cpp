@@ -8,18 +8,15 @@
 #include "PluginAPI.h"
 #include "FrameBuffer.h"
 
-bool DisplayWindow::start()
+void DisplayWindow::start()
 {
-	if (!_start())
-		return false;
+	_start(); // TODO: process initialization error
 
 	graphics::ObjectHandle::defaultFramebuffer = _getDefaultFramebuffer();
 
 	gfxContext.init();
 	m_drawer._initData();
 	m_buffersSwapCount = 0;
-
-	return true;
 }
 
 void DisplayWindow::stop()
@@ -116,8 +113,7 @@ bool DisplayWindow::resizeWindow()
 		return false;
 	m_drawer._destroyData();
 	if (!_resizeWindow())
-		if(!_start())
-			return false;
+		_start();
 	updateScale();
 	m_drawer._initData();
 	m_bResizeWindow = false;

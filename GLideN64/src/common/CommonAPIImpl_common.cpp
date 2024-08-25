@@ -194,7 +194,7 @@ void PluginAPI::RomClosed()
 #endif
 }
 
-int PluginAPI::RomOpen()
+void PluginAPI::RomOpen()
 {
 	LOG(LOG_APIFUNC, "RomOpen");
 #ifdef RSPTHREAD
@@ -207,12 +207,9 @@ int PluginAPI::RomOpen()
 	RSP_Init();
 	GBI.init();
 	Config_LoadConfig();
-	if (!dwnd().start())
-		return 0;
+	dwnd().start();
 #endif
 	m_bRomOpen = true;
-
-	return 1;
 }
 
 void PluginAPI::ShowCFB()

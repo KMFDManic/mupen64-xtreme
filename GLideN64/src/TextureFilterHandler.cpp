@@ -59,10 +59,6 @@ u32 TextureFilterHandler::_getConfigOptions() const
 		options |= DUMP_TEX;
 	if (config.textureFilter.txDeposterize)
 		options |= DEPOSTERIZE;
-	if (config.textureFilter.txEnhancedTextureFileStorage)
-		options |= FILE_TEXCACHE;
-	if (config.textureFilter.txHiresTextureFileStorage)
-		options |= FILE_HIRESTEXCACHE;
 	return options;
 }
 

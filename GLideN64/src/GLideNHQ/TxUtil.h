@@ -31,7 +31,6 @@
 
 /* extension for cache files */
 #define TEXCACHE_EXT wst("htc")
-#define TEXSTREAM_EXT wst("hts")
 
 #include <vector>
 

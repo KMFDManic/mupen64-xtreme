@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (nbio_stdio.c).
@@ -121,7 +121,10 @@ static void nbio_stdio_begin_read(void *data)
       return;
 
    if (handle->op >= 0)
+   {
+      puts("ERROR - attempted file read operation while busy");
       abort();
+   }
 
    fseek(handle->f, 0, SEEK_SET);
 
@@ -136,7 +139,10 @@ static void nbio_stdio_begin_write(void *data)
       return;
 
    if (handle->op >= 0)
+   {
+      puts("ERROR - attempted file write operation while busy");
       abort();
+   }
 
    fseek(handle->f, 0, SEEK_SET);
    handle->op = NBIO_WRITE;
@@ -194,9 +200,15 @@ static void nbio_stdio_resize(void *data, size_t len)
       return;
 
    if (handle->op >= 0)
+   {
+      puts("ERROR - attempted file resize operation while busy");
       abort();
+   }
    if (len < handle->len)
+   {
+      puts("ERROR - attempted file shrink operation, not implemented");
       abort();
+   }
 
    handle->len      = len;
    handle->progress = len;
@@ -236,7 +248,10 @@ static void nbio_stdio_free(void *data)
    if (!handle)
       return;
    if (handle->op >= 0)
+   {
+      puts("ERROR - attempted free() while busy");
       abort();
+   }
    fclose(handle->f);
    free(handle->data);
 

@@ -22,12 +22,11 @@ struct FrameBuffer;
 
 enum class DrawingState
 {
-	Non,
-	Line,
-	Triangle,
-	ScreenSpaceTriangle,
-	Rect,
-	TexRect
+	Non = 0,
+	Line = 1,
+	Triangle = 2,
+	Rect = 3,
+	TexRect = 4,
 };
 
 struct RectVertex
@@ -182,7 +181,7 @@ private:
 	void _updateDepthCompare() const;
 	void _updateTextures() const;
 	void _updateStates(DrawingState _drawingState) const;
-	void _prepareDrawTriangle(DrawingState _drawingState);
+	void _prepareDrawTriangle();
 	bool _canDraw() const;
 	void _drawThickLine(int _v0, int _v1, float _width);
 

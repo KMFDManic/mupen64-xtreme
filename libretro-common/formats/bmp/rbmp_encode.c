@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (rbmp_encode.c).
@@ -26,15 +26,15 @@
 #include <streams/file_stream.h>
 #include <formats/rbmp.h>
 
-void form_bmp_header(uint8_t *header,
-      unsigned width, unsigned height,
-      bool is32bpp)
+static bool write_header_bmp(RFILE *file, unsigned width, unsigned height, bool is32bpp)
 {
+   uint8_t header[54];
    unsigned line_size  = (width * (is32bpp?4:3) + 3) & ~3;
    unsigned size       = line_size * height + 54;
    unsigned size_array = line_size * height;
 
    /* Generic BMP stuff. */
+
    /* signature */
    header[0] = 'B';
    header[1] = 'M';
@@ -72,7 +72,7 @@ void form_bmp_header(uint8_t *header,
    header[26] = 1;
    header[27] = 0;
    /* Bits per pixel */
-   header[28] = is32bpp ? 32 : 24;
+   header[28] = is32bpp?32:24;
    header[29] = 0;
    /* Compression method */
    header[30] = 0;
@@ -104,12 +104,7 @@ void form_bmp_header(uint8_t *header,
    header[51] = 0;
    header[52] = 0;
    header[53] = 0;
-}
 
-static bool write_header_bmp(RFILE *file, unsigned width, unsigned height, bool is32bpp)
-{
-   uint8_t header[54];
-   form_bmp_header(header, width, height, is32bpp);
    return filestream_write(file, header, sizeof(header)) == sizeof(header);
 }
 

@@ -7,7 +7,6 @@
 #include <NoiseTexture.h>
 #include <FrameBuffer.h>
 #include <DisplayWindow.h>
-#include <Debugger.h>
 #include <GBI.h>
 #include <RSP.h>
 #include <gSP.h>
@@ -197,23 +196,6 @@ private:
 	iUniform uMSTex0;
 	iUniform uMSTex1;
 	iUniform uMSAASamples;
-};
-
-class UScreenSpaceTriangleInfo : public UniformGroup
-{
-public:
-	UScreenSpaceTriangleInfo(GLuint _program) {
-		LocateUniform(uScreenSpaceTriangle);
-	}
-
-	void update(bool _force) override
-	{
-		uScreenSpaceTriangle.set(
-			(dwnd().getDrawer().getDrawingState() == DrawingState::ScreenSpaceTriangle) ? 1 : 0, _force);
-	}
-
-private:
-	iUniform uScreenSpaceTriangle;
 };
 
 class UFrameBufferInfo : public UniformGroup
@@ -726,22 +708,6 @@ private:
 	iUniform uClampMode;
 };
 
-class UClipRatio : public UniformGroup
-{
-public:
-	UClipRatio(GLuint _program) {
-		LocateUniform(uClipRatio);
-	}
-
-	void update(bool _force) override
-	{
-		uClipRatio.set(float(gSP.clipRatio), _force);
-	}
-
-private:
-	fUniform uClipRatio;
-};
-
 class UPolygonOffset : public UniformGroup
 {
 public:
@@ -849,9 +815,9 @@ public:
 	{
 		TextureCache & cache = textureCache();
 		if (m_useT0 && cache.current[0] != NULL)
-			uTextureSize[0].set((float)cache.current[0]->width, (float)cache.current[0]->height, _force);
+			uTextureSize[0].set((float)cache.current[0]->realWidth, (float)cache.current[0]->realHeight, _force);
 		if (m_useT1 && cache.current[1] != NULL)
-			uTextureSize[1].set((float)cache.current[1]->width, (float)cache.current[1]->height, _force);
+			uTextureSize[1].set((float)cache.current[1]->realWidth, (float)cache.current[1]->realHeight, _force);
 	}
 
 private:
@@ -876,8 +842,6 @@ public:
 		LocateUniform(uCacheOffset[0]);
 		LocateUniform(uCacheOffset[1]);
 		LocateUniform(uTexScale);
-		LocateUniform(uTexSize[0]);
-		LocateUniform(uTexSize[1]);
 		LocateUniform(uCacheFrameBuffer);
 	}
 
@@ -889,37 +853,35 @@ public:
 			if (!m_useTile[t])
 				continue;
 
-			gDPTile * pTile = gSP.textureTile[t];
-			if (pTile != nullptr) {
-				if (pTile->textureMode == TEXTUREMODE_BGIMAGE || pTile->textureMode == TEXTUREMODE_FRAMEBUFFER_BG)
+			if (gSP.textureTile[t] != nullptr) {
+				if (gSP.textureTile[t]->textureMode == TEXTUREMODE_BGIMAGE || gSP.textureTile[t]->textureMode == TEXTUREMODE_FRAMEBUFFER_BG)
 					uTexOffset[t].set(0.0f, 0.0f, _force);
 				else {
-					float fuls = pTile->fuls;
-					float fult = pTile->fult;
-					if (pTile->frameBufferAddress > 0) {
-						FrameBuffer * pBuffer = frameBufferList().getBuffer(pTile->frameBufferAddress);
+					float fuls = gSP.textureTile[t]->fuls;
+					float fult = gSP.textureTile[t]->fult;
+					if (gSP.textureTile[t]->frameBufferAddress > 0) {
+						FrameBuffer * pBuffer = frameBufferList().getBuffer(gSP.textureTile[t]->frameBufferAddress);
 						if (pBuffer != nullptr) {
-							if (pTile->masks > 0 && pTile->clamps == 0)
-								fuls = float(pTile->uls % (1 << pTile->masks));
-							if (pTile->maskt > 0 && pTile->clampt == 0)
-								fult = float(pTile->ult % (1 << pTile->maskt));
+							if (gSP.textureTile[t]->masks > 0 && gSP.textureTile[t]->clamps == 0)
+								fuls = float(gSP.textureTile[t]->uls % (1 << gSP.textureTile[t]->masks));
+							if (gSP.textureTile[t]->maskt > 0 && gSP.textureTile[t]->clampt == 0)
+								fult = float(gSP.textureTile[t]->ult % (1 << gSP.textureTile[t]->maskt));
 						} else {
-							pTile->frameBufferAddress = 0;
+							gSP.textureTile[t]->frameBufferAddress = 0;
 						}
 					}
 					uTexOffset[t].set(fuls, fult, _force);
 				}
 			}
 
-			CachedTexture *_pTexture = cache.current[t];
-			if (_pTexture != nullptr) {
+			if (cache.current[t] != nullptr) {
 				f32 shiftScaleS = 1.0f;
 				f32 shiftScaleT = 1.0f;
 				getTextureShiftScale(t, cache, shiftScaleS, shiftScaleT);
 				uCacheShiftScale[t].set(shiftScaleS, shiftScaleT, _force);
-				uCacheScale[t].set(_pTexture->hdRatioS, _pTexture->hdRatioT, _force);
-				uCacheOffset[t].set(_pTexture->offsetS, _pTexture->offsetT, _force);
-				nFB[t] = _pTexture->frameBufferTexture;
+				uCacheScale[t].set(cache.current[t]->scaleS, cache.current[t]->scaleT, _force);
+				uCacheOffset[t].set(cache.current[t]->offsetS, cache.current[t]->offsetT, _force);
+				nFB[t] = cache.current[t]->frameBufferTexture;
 			}
 		}
 
@@ -934,114 +896,9 @@ private:
 	fv2Uniform uCacheScale[2];
 	fv2Uniform uCacheOffset[2];
 	fv2Uniform uTexScale;
-	fv2Uniform uTexSize[2];
 	iv2Uniform uCacheFrameBuffer;
 };
 
-class UTextureEngine : public UniformGroup
-{
-public:
-	UTextureEngine(GLuint _program, bool _useT0, bool _useT1)
-	{
-		m_useTile[0] = _useT0;
-		m_useTile[1] = _useT1;
-		LocateUniform(uTexWrap0);
-		LocateUniform(uTexWrap1);
-		LocateUniform(uTexClamp0);
-		LocateUniform(uTexClamp1);
-		LocateUniform(uTexWrapEn0);
-		LocateUniform(uTexWrapEn1);
-		LocateUniform(uTexClampEn0);
-		LocateUniform(uTexClampEn1);
-		LocateUniform(uTexMirrorEn0);
-		LocateUniform(uTexMirrorEn1);
-		LocateUniform(uTexSize0);
-		LocateUniform(uTexSize1);
-	}
-
-	void update(bool _force) override
-	{
-		std::array<f32, 2> aTexWrap[2] = { {0.0f,0.0f}, {0.0f,0.0f} };
-		std::array<f32, 2> aTexClamp[2] = { { 0.0f,0.0f },{ 0.0f,0.0f } };
-		std::array<f32, 2> aTexWrapEn[2] = { { 0.0f,0.0f },{ 0.0f,0.0f } };
-		std::array<f32, 2> aTexClampEn[2] = { { 0.0f,0.0f },{ 0.0f,0.0f } };
-		std::array<f32, 2> aTexMirrorEn[2] = { { 0.0f,0.0f },{ 0.0f,0.0f } };
-		std::array<f32, 2> aTexSize[2] = { { 0.0f,0.0f },{ 0.0f,0.0f } };
-
-		TextureCache & cache = textureCache();
-		const bool replaceTex1ByTex0 = needReplaceTex1ByTex0();
-		for (u32 t = 0; t < 2; ++t) {
-			if (!m_useTile[t])
-				continue;
-
-			const u32 tile = replaceTex1ByTex0 ? 0 : t;
-			const gDPTile * pTile = gSP.textureTile[tile];
-			CachedTexture * pTexture = cache.current[tile];
-			if (pTile == nullptr || pTexture == nullptr)
-				continue;
-			
-			aTexSize[t][0] = pTexture->width * pTexture->hdRatioS;
-			aTexSize[t][1] = pTexture->height * pTexture->hdRatioT;
-
-			/* Not sure if special treatment of framebuffer textures is correct */
-			if (pTexture->frameBufferTexture != CachedTexture::fbNone ||
-				pTile->textureMode != TEXTUREMODE_NORMAL ||
-				g_debugger.isDebugMode())
-			{
-				aTexWrap[t][0] = 1.0;
-				aTexWrap[t][1] = 1.0;
-				aTexClamp[t][0] = f32(pTexture->width) - 1.0f;
-				aTexClamp[t][1] = f32(pTexture->height) - 1.0f;
-				aTexWrapEn[t][0] = 0.0;
-				aTexWrapEn[t][1] = 0.0;
-				aTexClampEn[t][0] = 1.0;
-				aTexClampEn[t][1] = 1.0;
-				aTexMirrorEn[t][0] = 0.0;
-				aTexMirrorEn[t][1] = 0.0;
-			} else {
-				aTexWrap[t][0] = f32(1 << pTile->masks) * pTexture->hdRatioS;
-				aTexWrap[t][1] = f32(1 << pTile->maskt) * pTexture->hdRatioT;
-				aTexClamp[t][0] = (pTile->flrs - pTile->fuls + 1.0f) * pTexture->hdRatioS - 1.0f;
-				aTexClamp[t][1] = (pTile->flrt - pTile->fult + 1.0f) * pTexture->hdRatioT - 1.0f;
-				aTexWrapEn[t][0] = f32(pTile->masks == 0 ? 0 : 1);
-				aTexWrapEn[t][1] = f32(pTile->maskt == 0 ? 0 : 1);
-				aTexClampEn[t][0] = f32(gDP.otherMode.cycleType == G_CYC_COPY ? 0 : (pTile->masks == 0 ? 1 : pTile->clamps));
-				aTexClampEn[t][1] = f32(gDP.otherMode.cycleType == G_CYC_COPY ? 0 : (pTile->maskt == 0 ? 1 : pTile->clampt));
-				aTexMirrorEn[t][0] = f32(pTile->masks == 0 ? 0 : pTile->mirrors);
-				aTexMirrorEn[t][1] = f32(pTile->maskt == 0 ? 0 : pTile->mirrort);
-			}
-		}
-
-		uTexWrap0.set(aTexWrap[0][0], aTexWrap[0][1], _force);
-		uTexWrap1.set(aTexWrap[1][0], aTexWrap[1][1], _force);
-		uTexClamp0.set(aTexClamp[0][0], aTexClamp[0][1], _force);
-		uTexClamp1.set(aTexClamp[1][0], aTexClamp[1][1], _force);
-		uTexWrapEn0.set(aTexWrapEn[0][0], aTexWrapEn[0][1], _force);
-		uTexWrapEn1.set(aTexWrapEn[1][0], aTexWrapEn[1][1], _force);
-		uTexClampEn0.set(aTexClampEn[0][0], aTexClampEn[0][1], _force);
-		uTexClampEn1.set(aTexClampEn[1][0], aTexClampEn[1][1], _force);
-		uTexMirrorEn0.set(aTexMirrorEn[0][0], aTexMirrorEn[0][1], _force);
-		uTexMirrorEn1.set(aTexMirrorEn[1][0], aTexMirrorEn[1][1], _force);
-		uTexSize0.set(aTexSize[0][0], aTexSize[0][1], _force);
-		uTexSize1.set(aTexSize[1][0], aTexSize[1][1], _force);
-				
-	}
-
-private:
-	bool m_useTile[2];
-	fv2Uniform uTexWrap0;
-	fv2Uniform uTexWrap1;
-	fv2Uniform uTexClamp0;
-	fv2Uniform uTexClamp1;
-	fv2Uniform uTexWrapEn0;
-	fv2Uniform uTexWrapEn1;
-	fv2Uniform uTexClampEn0;
-	fv2Uniform uTexClampEn1;
-	fv2Uniform uTexMirrorEn0;
-	fv2Uniform uTexMirrorEn1;
-	fv2Uniform uTexSize0;
-	fv2Uniform uTexSize1;
-};
 
 class ULights : public UniformGroup
 {
@@ -1078,8 +935,8 @@ void CombinerProgramUniformFactory::buildUniforms(GLuint _program,
 												  const CombinerKey & _key,
 												  UniformGroups & _uniforms)
 {
-	_uniforms.emplace_back(new UNoiseTex(_program));
-	_uniforms.emplace_back(new UScreenSpaceTriangleInfo(_program));
+	if (config.generalEmulation.enableNoise != 0)
+		_uniforms.emplace_back(new UNoiseTex(_program));
 
 	if (!m_glInfo.isGLES2) {
 		_uniforms.emplace_back(new UDepthTex(_program));
@@ -1109,8 +966,6 @@ void CombinerProgramUniformFactory::buildUniforms(GLuint _program,
 
 		if (!_key.isRectKey())
 			_uniforms.emplace_back(new UTextureParams(_program, _inputs.usesTile(0), _inputs.usesTile(1)));
-
-		_uniforms.emplace_back(new UTextureEngine(_program, _inputs.usesTile(0), _inputs.usesTile(1)));
 	}
 
 	_uniforms.emplace_back(new UFog(_program));
@@ -1135,21 +990,19 @@ void CombinerProgramUniformFactory::buildUniforms(GLuint _program,
 	if ((config.generalEmulation.hacks & hack_RE2) != 0 && config.generalEmulation.enableFragmentDepthWrite != 0)
 		_uniforms.emplace_back(new UZLutTexture(_program));
 
-	if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable)
+	if (config.frameBufferEmulation.N64DepthCompare != 0)
 		_uniforms.emplace_back(new UDepthInfo(_program));
 	else
 		_uniforms.emplace_back(new UDepthSource(_program));
 
 	if (config.generalEmulation.enableFragmentDepthWrite != 0 ||
-		config.frameBufferEmulation.N64DepthCompare != Config::dcDisable)
+		config.frameBufferEmulation.N64DepthCompare != 0)
 		_uniforms.emplace_back(new URenderTarget(_program));
 
 	if (m_glInfo.isGLESX && m_glInfo.noPerspective) {
 		_uniforms.emplace_back(new UClampMode(_program));
 		_uniforms.emplace_back(new UPolygonOffset(_program));
 	}
-
-	_uniforms.emplace_back(new UClipRatio(_program));
 
 	_uniforms.emplace_back(new UScreenCoordsScale(_program));
 

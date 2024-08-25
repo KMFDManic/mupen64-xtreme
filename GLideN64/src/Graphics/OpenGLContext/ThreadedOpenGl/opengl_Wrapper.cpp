@@ -2,17 +2,6 @@
 #include "opengl_WrappedFunctions.h"
 #include "Graphics/OpenGLContext/GLFunctions.h"
 #include <memory>
-#include <set>
-
-extern "C" {
-	extern void context_reset();
-	bool threaded_gl_safe_shutdown = false;
-
-	void gln64_thr_gl_invoke_command_loop()
-	{
-		opengl::FunctionWrapper::commandLoop();
-	}
-}
 
 namespace opengl {
 
@@ -23,58 +12,34 @@ namespace opengl {
 	std::thread FunctionWrapper::m_commandExecutionThread;
 	std::mutex FunctionWrapper::m_condvarMutex;
 	std::condition_variable FunctionWrapper::m_condition;
-#if defined(GL_DEBUG) && defined(GL_PROFILE)
-	std::map<std::string, FunctionWrapper::FunctionProfilingData> FunctionWrapper::m_functionProfiling;
-	std::chrono::time_point<std::chrono::high_resolution_clock> FunctionWrapper::m_lastProfilingOutput;
-#endif
 	BlockingReaderWriterQueue<std::shared_ptr<OpenGlCommand>> FunctionWrapper::m_commandQueue;
 	BlockingReaderWriterQueue<std::shared_ptr<OpenGlCommand>> FunctionWrapper::m_commandQueueHighPriority;
 
 
 	void FunctionWrapper::executeCommand(std::shared_ptr<OpenGlCommand> _command)
 	{
-#if !defined(GL_DEBUG)
+#ifndef GL_DEBUG
 		m_commandQueue.enqueue(_command);
 		_command->waitOnCommand();
-#elif !defined(GL_PROFILE)
-		_command->performCommandSingleThreaded();
 #else
-		auto callStartTime = std::chrono::high_resolution_clock::now();
 		_command->performCommandSingleThreaded();
-		std::chrono::duration<double> callDuration = std::chrono::high_resolution_clock::now() - callStartTime;
-
-		++m_functionProfiling[_command->getFunctionName()].m_callCount;
-		m_functionProfiling[_command->getFunctionName()].m_totalTime += callDuration.count();
-
-		logProfilingData();
 #endif
 	}
 
 	void FunctionWrapper::executePriorityCommand(std::shared_ptr<OpenGlCommand> _command)
 	{
-#if !defined(GL_DEBUG)
+#ifndef GL_DEBUG
 		m_commandQueueHighPriority.enqueue(_command);
 		m_commandQueue.enqueue(nullptr);
 		_command->waitOnCommand();
-#elif !defined(GL_PROFILE)
-                _command->performCommandSingleThreaded();
 #else
-		auto callStartTime = std::chrono::high_resolution_clock::now();
 		_command->performCommandSingleThreaded();
-		std::chrono::duration<double> callDuration = std::chrono::high_resolution_clock::now() - callStartTime;
-
-		++m_functionProfiling[_command->getFunctionName()].m_callCount;
-		m_functionProfiling[_command->getFunctionName()].m_totalTime += callDuration.count();
-
-		logProfilingData();
 #endif
 	}
 
 	void FunctionWrapper::commandLoop()
 	{
 		bool timeToShutdown = false;
-		threaded_gl_safe_shutdown = false;
-        
 		while (!timeToShutdown) {
 			std::shared_ptr<OpenGlCommand> command;
 
@@ -88,65 +53,20 @@ namespace opengl {
 					timeToShutdown = command->isTimeToShutdown();
 				}
 			}
-			if(!retro_savestate_complete)
-			{				
-				// Yield to frontend
-				co_switch(retro_thread);
-			}
-		}
-		
-		// Return
-		threaded_gl_safe_shutdown = true;
-		co_switch(retro_thread);
-	}
-
-#if defined(GL_DEBUG) && defined(GL_PROFILE)
-	void FunctionWrapper::logProfilingData()
-	{
-		std::chrono::duration<double> timeSinceLastOutput = std::chrono::high_resolution_clock::now() - m_lastProfilingOutput;
-
-		static const double profilingOutputInterval = 10.0;
-		if (timeSinceLastOutput.count() > profilingOutputInterval) {
-
-			// Declaring the type of Predicate that accepts 2 pairs and return a bool
-			typedef std::function<bool(std::pair<std::string, FunctionProfilingData>, std::pair<std::string, FunctionProfilingData>)> Comparator;
-
-			// Defining a lambda function to compare two pairs. It will compare two pairs using second field
-			Comparator compFunctor =
-					[](std::pair<std::string, FunctionProfilingData> elem1, std::pair<std::string, FunctionProfilingData> elem2)
-					{
-						return elem1.second.m_totalTime > elem2.second.m_totalTime;
-					};
-			std::set<std::pair<std::string, FunctionProfilingData>, Comparator> functionSet(m_functionProfiling.begin(), m_functionProfiling.end(), compFunctor);
-
-			LOG(LOG_ERROR, "Profiling output");
-			for ( auto element : functionSet ) {
-				std::stringstream output;
-				output << element.first << ": call_count=" << element.second.m_callCount
-					   << " duration=" << element.second.m_totalTime
-					   << " average_per_call=" << element.second.m_totalTime/element.second.m_callCount;
-				LOG(LOG_ERROR, output.str().c_str());
-			}
-
-			m_functionProfiling.clear();
-			m_lastProfilingOutput = std::chrono::high_resolution_clock::now();
 		}
 	}
-#endif
 
 	void FunctionWrapper::setThreadedMode(u32 _threaded)
 	{
 #ifdef GL_DEBUG
 		m_threaded_wrapper = true;
 		m_shutdown = false;
-#ifdef GL_PROFILE
-		m_lastProfilingOutput = std::chrono::high_resolution_clock::now();
-#endif
 #else
 		if (_threaded == 1) {
 			m_threaded_wrapper = true;
 			m_shutdown = false;
-			//m_commandExecutionThread = std::thread(&FunctionWrapper::commandLoop);
+			m_commandExecutionThread = std::thread(&FunctionWrapper::commandLoop);
+
 		}
 		else {
 			m_threaded_wrapper = false;
@@ -1382,44 +1302,12 @@ namespace opengl {
 			ptrFinish();
 	}
 
-	void FunctionWrapper::wrCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
-	{
-		if (m_threaded_wrapper)
-			executeCommand(GlCopyTexImage2DCommand::get(target, level, internalformat, x, y, width, height, border));
-		else
-			ptrCopyTexImage2D(target, level, internalformat, x, y, width, height, border);
-	}
-
-	void FunctionWrapper::wrDebugMessageCallback(GLDEBUGPROC callback, const void *userParam)
-	{
-		if (m_threaded_wrapper)
-			executeCommand(GlDebugMessageCallbackCommand::get(callback, userParam));
-		else
-			ptrDebugMessageCallback(callback, userParam);
-	}
-
-	void FunctionWrapper::wrDebugMessageControl(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled)
-	{
-		if (m_threaded_wrapper)
-			executeCommand(GlDebugMessageControlCommand::get(source, type, severity, count, ids, enabled));
-		else
-			ptrDebugMessageControl(source, type, severity, count, ids, enabled);
-	}
-
 	void FunctionWrapper::wrEGLImageTargetTexture2DOES(GLenum target, void* image)
 	{
 		if (m_threaded_wrapper)
 			executeCommand(GlEGLImageTargetTexture2DOESCommand::get(target, image));
 		else
 			ptrEGLImageTargetTexture2DOES(target, image);
-	}
-
-	void FunctionWrapper::wrEGLImageTargetRenderbufferStorageOES(GLenum target, void* image)
-	{
-		if (m_threaded_wrapper)
-			executeCommand(GlEGLImageTargetRenderbufferStorageOESCommand::get(target, image));
-		else
-			ptrEGLImageTargetRenderbufferStorageOES(target, image);
 	}
 
 #if defined(OS_ANDROID)
@@ -1438,14 +1326,13 @@ namespace opengl {
 #endif
 
 #ifdef MUPENPLUSAPI
-	m64p_error FunctionWrapper::CoreVideo_Init()
+
+	void FunctionWrapper::CoreVideo_Init()
 	{
-		m64p_error returnValue;
 		if (m_threaded_wrapper)
-			executeCommand(CoreVideoInitCommand::get(returnValue));
+			executeCommand(CoreVideoInitCommand::get());
 		else
-			CoreVideoInitCommand::get(returnValue)->performCommandSingleThreaded();
-		return returnValue;
+			CoreVideoInitCommand::get()->performCommandSingleThreaded();
 	}
 
 	void FunctionWrapper::CoreVideo_Quit()
@@ -1462,7 +1349,7 @@ namespace opengl {
 #ifndef GL_DEBUG
 		if (m_threaded_wrapper) {
 			m_condition.notify_all();
-			//m_commandExecutionThread.join();
+			m_commandExecutionThread.join();
 		}
 #endif
 	}
@@ -1503,6 +1390,7 @@ namespace opengl {
 			executeCommand(CoreVideoGLSwapBuffersCommand::get([]{ReduceSwapBuffersQueued();}));
 		else
 			CoreVideoGLSwapBuffersCommand::get([]{ReduceSwapBuffersQueued();})->performCommandSingleThreaded();
+
 	}
 #else
 	bool FunctionWrapper::windowsStart()
@@ -1530,7 +1418,7 @@ namespace opengl {
 #ifndef GL_DEBUG
 		if (m_threaded_wrapper) {
 			m_condition.notify_all();
-			//m_commandExecutionThread.join();
+			m_commandExecutionThread.join();
 		}
 #endif
 	}

@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (audio_resampler.c).
@@ -28,19 +28,13 @@
 
 #include <audio/audio_resampler.h>
 
-static void resampler_null_process(void *a, struct resampler_data *b) { }
-static void resampler_null_free(void *a) { }
-static void *resampler_null_init(const struct resampler_config *a, double b,
-      enum resampler_quality c, resampler_simd_mask_t d) { return (void*)0; }
+#ifdef HAVE_THREADS
+#include <rthreads/rthreads.h>
+#endif
 
-retro_resampler_t null_resampler = {
-   resampler_null_init,
-   resampler_null_process,
-   resampler_null_free,
-   RESAMPLER_API_VERSION,
-   "null",
-   "null"
-};
+#ifdef HAVE_THREADS
+static slock_t* s_resampler_lock = NULL;
+#endif
 
 static const retro_resampler_t *resampler_drivers[] = {
    &sinc_resampler,
@@ -183,4 +177,38 @@ bool retro_resampler_realloc(void **re, const retro_resampler_t **backend,
    }
 
    return true;
+}
+
+void audio_resampler_lock_init(void)
+{
+#ifdef HAVE_THREADS
+   if (s_resampler_lock)
+      slock_free(s_resampler_lock);
+   s_resampler_lock = slock_new();
+#endif
+}
+
+void audio_resampler_lock_free(void)
+{
+#ifdef HAVE_THREADS
+   if (s_resampler_lock)
+      slock_free(s_resampler_lock);
+   s_resampler_lock = NULL;
+#endif
+}
+
+void audio_resampler_lock(void)
+{
+#ifdef HAVE_THREADS
+   if (s_resampler_lock)
+      slock_lock(s_resampler_lock);
+#endif
+}
+
+void audio_resampler_unlock(void)
+{
+#ifdef HAVE_THREADS
+   if (s_resampler_lock)
+      slock_unlock(s_resampler_lock);
+#endif
 }

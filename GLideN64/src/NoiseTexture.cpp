@@ -74,11 +74,14 @@ void NoiseTexture::_fillTextureData()
 
 void NoiseTexture::init()
 {
+	if (config.generalEmulation.enableNoise == 0)
+		return;
+
 	if (m_texData[0].empty())
 		_fillTextureData();
 
 	for (u32 i = 0; i < NOISE_TEX_NUM; ++i) {
-		m_pTexture[i] = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+		m_pTexture[i] = textureCache().addFrameBufferTexture(false);
 		m_pTexture[i]->format = G_IM_FMT_RGBA;
 		m_pTexture[i]->clampS = 1;
 		m_pTexture[i]->clampT = 1;
@@ -87,17 +90,17 @@ void NoiseTexture::init()
 		m_pTexture[i]->maskT = 0;
 		m_pTexture[i]->mirrorS = 0;
 		m_pTexture[i]->mirrorT = 0;
-		m_pTexture[i]->width = NOISE_TEX_WIDTH;
-		m_pTexture[i]->height = NOISE_TEX_HEIGHT;
-		m_pTexture[i]->textureBytes = m_pTexture[i]->width * m_pTexture[i]->height;
+		m_pTexture[i]->realWidth = NOISE_TEX_WIDTH;
+		m_pTexture[i]->realHeight = NOISE_TEX_HEIGHT;
+		m_pTexture[i]->textureBytes = m_pTexture[i]->realWidth * m_pTexture[i]->realHeight;
 
 		const FramebufferTextureFormats & fbTexFormats = gfxContext.getFramebufferTextureFormats();
 		{
 			Context::InitTextureParams params;
 			params.handle = m_pTexture[i]->name;
 			params.textureUnitIndex = textureIndices::NoiseTex;
-			params.width = m_pTexture[i]->width;
-			params.height = m_pTexture[i]->height;
+			params.width = m_pTexture[i]->realWidth;
+			params.height = m_pTexture[i]->realHeight;
 			params.internalFormat = fbTexFormats.noiseInternalFormat;
 			params.format = fbTexFormats.noiseFormat;
 			params.dataType = fbTexFormats.noiseType;
@@ -126,7 +129,7 @@ void NoiseTexture::destroy()
 
 void NoiseTexture::update()
 {
-	if (m_texData[0].empty() || m_DList == dwnd().getBuffersSwapCount())
+	if (m_DList == dwnd().getBuffersSwapCount() || config.generalEmulation.enableNoise == 0)
 		return;
 
 	u32 rand_value(0U);

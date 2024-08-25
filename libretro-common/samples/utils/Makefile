@@ -52,7 +52,6 @@ else
 EXE_EXT = .exe
 endif
 
-PWD_DIR := .
 LIBRETRO_COMM_DIR := ../..
 CORE_DIR := $(LIBRETRO_COMM_DIR)/utils
 
@@ -68,33 +67,23 @@ ASMFLAGS := -INEON/asm
 asflags += -mfpu=neon
 endif
 
-DJB2_OBJS := $(CORE_DIR)/djb2.o
-
-MD5_OBJS  := $(CORE_DIR)/md5.o \
-				 $(PWD_DIR)/md5_test.o
-
-SHA1_OBJS := $(CORE_DIR)/sha1.o \
-				 $(PWD_DIR)/sha1_main.o
-
-CRC32_OBJS := $(PWD_DIR)/crc32.o \
-				  $(LIBRETRO_COMM_DIR)/compat/fopen_utf8.o \
-				  $(LIBRETRO_COMM_DIR)/compat/compat_strl.o \
-				  $(LIBRETRO_COMM_DIR)/encodings/encoding_utf.o \
-				  $(LIBRETRO_COMM_DIR)/streams/file_stream.o \
-				  $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.o \
-			     $(LIBRETRO_COMM_DIR)/encodings/encoding_crc32.o
+OBJS += $(CORE_DIR)/djb2.o \
+		  $(CORE_DIR)/md5.o \
+		  $(CORE_DIR)/sha1.o \
+		  $(CORE_DIR)/sha1_main.o \
+		  $(CORE_DIR)/crc32.o
 
 UTILS := djb2$(EXE_EXT) md5$(EXE_EXT) sha1$(EXE_EXT) crc32$(EXE_EXT)
 
 all: $(UTILS)
 
-djb2$(EXE_EXT): $(DJB2_OBJS)
+djb2$(EXE_EXT): $(CORE_DIR)/djb2.o
 
-md5$(EXE_EXT): $(MD5_OBJS)
+md5$(EXE_EXT): $(CORE_DIR)/md5.o
 
-sha1$(EXE_EXT): $(SHA1_OBJS)
+sha1$(EXE_EXT): $(CORE_DIR)/sha1.o $(CORE_DIR)/sha1_main.o
 
-crc32$(EXE_EXT): $(CRC32_OBJS)
+crc32$(EXE_EXT): $(CORE_DIR)/crc32.o $(CORE_DIR)/../encodings/encoding_crc32.o
 
 %.o: %.S
 	$(CC) -c -o $@ $(asflags) $(LDFLAGS)  $(ASMFLAGS)  $<

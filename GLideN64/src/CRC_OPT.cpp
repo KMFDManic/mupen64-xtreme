@@ -1,5 +1,5 @@
 #include "CRC.h"
-#include "xxHash/xxh3.h"
+#include "xxHash/xxhash.h"
 
 #define CRC32_POLYNOMIAL     0x04C11DB7
 
@@ -45,16 +45,16 @@ u32 CRC_Calculate_Strict( u32 crc, const void * buffer, u32 count )
 	return crc ^ orig;
 }
 
-u64 CRC_Calculate( u64 crc, const void * buffer, u32 count )
+u32 CRC_Calculate( u32 crc, const void * buffer, u32 count )
 {
-	return XXH3_64bits_withSeed(buffer, count, crc);
+	return XXH32(buffer, count, crc);
 }
 
-u64 CRC_CalculatePalette( u64 crc, const void * buffer, u32 count )
+u32 CRC_CalculatePalette(u32 crc, const void * buffer, u32 count )
 {
 	u8 *p = (u8*) buffer;
 	while (count--) {
-		crc = XXH3_64bits_withSeed(p, 2, crc);
+		crc = XXH32(p, 2, crc);
 		p += 8;
 	}
 	return crc;

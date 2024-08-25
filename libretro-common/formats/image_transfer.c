@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (image_transfer.c).
@@ -177,14 +177,13 @@ bool image_transfer_is_valid(
 void image_transfer_set_buffer_ptr(
       void *data,
       enum image_type_enum type,
-      void *ptr,
-      size_t len)
+      void *ptr)
 {
    switch (type)
    {
       case IMAGE_TYPE_PNG:
 #ifdef HAVE_RPNG
-         rpng_set_buf_ptr((rpng_t*)data, (uint8_t*)ptr, len);
+         rpng_set_buf_ptr((rpng_t*)data, (uint8_t*)ptr);
 #endif
          break;
       case IMAGE_TYPE_JPEG:
@@ -217,6 +216,9 @@ int image_transfer_process(
    {
       case IMAGE_TYPE_PNG:
 #ifdef HAVE_RPNG
+         if (!rpng_is_valid((rpng_t*)data))
+            return IMAGE_PROCESS_ERROR;
+
          return rpng_process_image(
                (rpng_t*)data,
                (void**)buf, len, width, height);

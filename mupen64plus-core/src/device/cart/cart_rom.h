@@ -28,7 +28,6 @@
 #include "osal/preproc.h"
 
 struct r4300_core;
-struct pi_controller;
 
 struct cart_rom
 {
@@ -36,9 +35,9 @@ struct cart_rom
     size_t rom_size;
 
     uint32_t last_write;
+    uint32_t rom_written;
 
     struct r4300_core* r4300;
-    struct pi_controller* pi;
 };
 
 static osal_inline uint32_t rom_address(uint32_t address)
@@ -48,8 +47,7 @@ static osal_inline uint32_t rom_address(uint32_t address)
 
 void init_cart_rom(struct cart_rom* cart_rom,
                    uint8_t* rom, size_t rom_size,
-                   struct r4300_core* r4300,
-                   struct pi_controller* pi);
+                   struct r4300_core* r4300);
 
 void poweron_cart_rom(struct cart_rom* cart_rom);
 

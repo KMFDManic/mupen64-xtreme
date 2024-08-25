@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (rbmp.h).
@@ -50,10 +50,6 @@ bool rbmp_save_image(
 
 int rbmp_process_image(rbmp_t *rbmp, void **buf,
       size_t size, unsigned *width, unsigned *height);
-
-void form_bmp_header(uint8_t *header,
-      unsigned width, unsigned height,
-      bool is32bpp);
 
 bool rbmp_set_buf_ptr(rbmp_t *rbmp, void *data);
 

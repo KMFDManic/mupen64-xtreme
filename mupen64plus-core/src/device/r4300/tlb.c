@@ -20,7 +20,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "tlb.h"
-#include <mupen64plus-next_common.h>
 
 #include "api/m64p_types.h"
 #include "device/r4300/r4300_core.h"
@@ -141,34 +140,26 @@ uint32_t virtual_to_physical_address(struct r4300_core* r4300, uint32_t address,
     //printf("tlb exception !!! @ %x, %x, add:%x\n", address, w, r4300->pc->addr);
     //getchar();
 
+    /* 
+      XXX HACK/HOTFIX: Prevents OoT crash under certain circumstances with NEW_DYNAREC...
+      This will also fix Rat Attack for NEW_DYNAREC, interpreter needs to ignore TLB_refill_exception
+      as well, under these circumstances. Is a simliar using_tlb there?
+      Needs fixes upstream, but this will do for now.
+    */
 #ifdef NEW_DYNAREC
-    if(IgnoreTLBExceptions == 0) {
-        /* False, Default Behaviour */
-        TLB_refill_exception(r4300, address, w);
-    } else if(IgnoreTLBExceptions == 1) {
-        /* OnlyNotEnabled */
-        if(r4300->emumode == EMUMODE_DYNAREC)
+    if (r4300->emumode == EMUMODE_DYNAREC)
+    {
+        if(using_tlb)
         {
-            if(using_tlb)
-            {
-                TLB_refill_exception(r4300, address, w);
-            }
-        } else {
             TLB_refill_exception(r4300, address, w);
         }
-    } else if(IgnoreTLBExceptions == 2)
-    {
-        /* AlwaysIgnoreTLB */
-        /* Use-case GdbStub... */
     }
-#else
-    if(IgnoreTLBExceptions == 2)
+    else
     {
-        /* AlwaysIgnoreTLB */
-        /* Use-case for Interpreter-only GdbStub... */
-    } else {
         TLB_refill_exception(r4300, address, w);
     }
+#else
+    TLB_refill_exception(r4300, address, w);
 #endif // NEW_DYNAREC
 
     //return 0x80000000;

@@ -8,15 +8,17 @@ INSTALLDIR  := $(PREFIX)/lib/retroarch/filters/audio
 
 ifeq ($(platform),)
    platform = unix
-   ifeq ($(shell uname -s),)
+   ifeq ($(shell uname -a),)
       platform = win
-   else ifneq ($(findstring Darwin,$(shell uname -s)),)
+   else ifneq ($(findstring MINGW,$(shell uname -a)),)
+      platform = win
+   else ifneq ($(findstring Darwin,$(shell uname -a)),)
       platform = osx
-      arch     = intel
+      arch = intel
       ifeq ($(shell uname -p),powerpc)
          arch = ppc
       endif
-   else ifneq ($(findstring MINGW,$(shell uname -s)),)
+   else ifneq ($(findstring win,$(shell uname -a)),)
       platform = win
    endif
 endif

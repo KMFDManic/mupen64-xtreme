@@ -36,70 +36,62 @@
 #include "device/rcp/vi/vi_controller.h"
 #include "dummy_audio.h"
 #include "dummy_input.h"
+#include "dummy_video.h"
 #include "main/main.h"
 #include "main/rom.h"
 #include "main/version.h"
 #include "osal/dynamiclib.h"
 #include "plugin.h"
-#ifdef __LIBRETRO__
-#include "mupen64plus-next_common.h"
-#endif
 
 #include <stdio.h>
 
 CONTROL Controls[4];
-void ResizeVideoOutput(int width, int height){
+/* global function pointers - initialized on core startup */
 
-}
+
 /* local data structures and functions */
 #define DEFINE_GFX(X) \
-    EXPORT m64p_error CALL X##PluginGetVersion(m64p_plugin_type *, int *, int *, const char **, int *); \
-    EXPORT void CALL X##ChangeWindow(void); \
-    EXPORT int  CALL X##InitiateGFX(GFX_INFO Gfx_Info); \
-    EXPORT void CALL X##MoveScreen(int x, int y); \
-    EXPORT void CALL X##ProcessDList(void); \
-    EXPORT void CALL X##ProcessRDPList(void); \
-    EXPORT void CALL X##RomClosed(void); \
-    EXPORT int  CALL X##RomOpen(void); \
-    EXPORT void CALL X##ShowCFB(void); \
-    EXPORT void CALL X##UpdateScreen(void); \
-    EXPORT void CALL X##ViStatusChanged(void); \
-    EXPORT void CALL X##ViWidthChanged(void); \
-    EXPORT void CALL X##ReadScreen2(void *dest, int *width, int *height, int front); \
-    EXPORT void CALL X##SetRenderingCallback(void (*callback)(int)); \
-    EXPORT void CALL X##ResizeVideoOutput(int width, int height); \
-    EXPORT void CALL X##FBRead(unsigned int addr); \
-    EXPORT void CALL X##FBWrite(unsigned int addr, unsigned int size); \
-    EXPORT void CALL X##FBGetFrameBufferInfo(void *p); \
+    EXPORT m64p_error CALL PluginGetVersion(m64p_plugin_type *, int *, int *, const char **, int *); \
+    EXPORT void CALL ChangeWindow(void); \
+    EXPORT int  CALL InitiateGFX(GFX_INFO Gfx_Info); \
+    EXPORT void CALL MoveScreen(int x, int y); \
+    EXPORT void CALL ProcessDList(void); \
+    EXPORT void CALL ProcessRDPList(void); \
+    EXPORT void CALL RomClosed(void); \
+    EXPORT int  CALL RomOpen(void); \
+    EXPORT void CALL ShowCFB(void); \
+    EXPORT void CALL UpdateScreen(void); \
+    EXPORT void CALL ViStatusChanged(void); \
+    EXPORT void CALL ViWidthChanged(void); \
+    EXPORT void CALL ReadScreen2(void *dest, int *width, int *height, int front); \
+    EXPORT void CALL SetRenderingCallback(void (*callback)(int)); \
+    EXPORT void CALL ResizeVideoOutput(int width, int height); \
+    EXPORT void CALL FBRead(unsigned int addr); \
+    EXPORT void CALL FBWrite(unsigned int addr, unsigned int size); \
+    EXPORT void CALL FBGetFrameBufferInfo(void *p); \
     \
     gfx_plugin_functions gfx_##X = { \
-        X##PluginGetVersion, \
-        X##ChangeWindow, \
-        X##InitiateGFX, \
-        X##MoveScreen, \
-        X##ProcessDList, \
-        X##ProcessRDPList, \
-        X##RomClosed, \
-        X##RomOpen, \
-        X##ShowCFB, \
-        X##UpdateScreen, \
-        X##ViStatusChanged, \
-        X##ViWidthChanged, \
-        X##ReadScreen2, \
-        X##SetRenderingCallback, \
+        PluginGetVersion, \
+        ChangeWindow, \
+        InitiateGFX, \
+        MoveScreen, \
+        ProcessDList, \
+        ProcessRDPList, \
+        RomClosed, \
+        RomOpen, \
+        ShowCFB, \
+        UpdateScreen, \
+        ViStatusChanged, \
+        ViWidthChanged, \
+        ReadScreen2, \
+        SetRenderingCallback, \
         ResizeVideoOutput, \
-        X##FBRead, \
-        X##FBWrite, \
-        X##FBGetFrameBufferInfo \
+        FBRead, \
+        FBWrite, \
+        FBGetFrameBufferInfo \
     }
 
 DEFINE_GFX(gln64);
-#if defined(HAVE_THR_AL)
-DEFINE_GFX(angrylion);
-#endif
-#if defined(HAVE_PARALLEL_RDP)
-DEFINE_GFX(parallel);
-#endif
 
 gfx_plugin_functions gfx;
 GFX_INFO gfx_info;
@@ -177,17 +169,10 @@ static void EmptyFunc(void)
         X##RomClosed \
     }
 
-// Define RSP Interfaces
 DEFINE_RSP(hle);
-
-#ifdef HAVE_PARALLEL_RSP
-DEFINE_RSP(parallelRSP);
-#endif // HAVE_PARALLEL_RSP
-
-#if HAVE_LLE
-DEFINE_RSP(cxd4);
-#endif // HAVE_LLE
-
+#ifndef VC
+//DEFINE_RSP(lle);
+#endif
 static void                     (*l_mainRenderCallback)(int) = NULL;
 static ptr_SetRenderingCallback   l_old1SetRenderingCallback = NULL;
 
@@ -204,8 +189,6 @@ static void backcompat_setRenderCallbackIntercept(void (*callback)(int))
 
 m64p_error plugin_start_gfx(void)
 {
-    printf("plugin_start_gfx\n");
-
     uint8_t media = *((uint8_t*)mem_base_u32(g_mem_base, MM_CART_ROM) + (0x3b ^ S8));
 
     /* Here we feed 64DD IPL ROM header to GFX plugin if 64DD is present.
@@ -386,98 +369,6 @@ m64p_error plugin_check(void)
     return M64ERR_SUCCESS;
 }
 
-#ifdef __LIBRETRO__
-enum rdp_plugin_type current_rdp_type = RDP_PLUGIN_NONE;
-enum rsp_plugin_type current_rsp_type = RSP_PLUGIN_NONE;
-
-void plugin_connect_rdp_api(enum rdp_plugin_type type)
-{
-   switch (type)
-   {
-      case RDP_PLUGIN_GLIDEN64:
-      case RDP_PLUGIN_ANGRYLION:
-      case RDP_PLUGIN_PARALLEL:
-         current_rdp_type = type;
-         break;
-      case RSP_PLUGIN_NONE:
-      default:
-         break;
-   }
-}
-
-void plugin_connect_rsp_api(enum rsp_plugin_type type)
-{
-   switch (type)
-   {
-      case RSP_PLUGIN_HLE:
-      case RSP_PLUGIN_CXD4:
-      case RSP_PLUGIN_PARALLEL:
-         current_rsp_type = type;
-         break;
-      case RSP_PLUGIN_NONE:
-      default:
-         break;
-   }
-}
-
-/* global functions */
-void plugin_connect_all()
-{
-    switch (current_rdp_type)
-    {
-       case RDP_PLUGIN_ANGRYLION:
-#ifdef HAVE_THR_AL
-          gfx = gfx_angrylion;
-#endif
-          break;
-       case RDP_PLUGIN_PARALLEL:
-#ifdef HAVE_PARALLEL_RDP
-          gfx = gfx_parallel;
-#endif
-          break;
-       case RDP_PLUGIN_GLIDEN64:
-          gfx = gfx_gln64;
-          break;
-      case RDP_PLUGIN_NONE:
-      default:
-         break;
-    }
-
-    l_GfxAttached = 1;
-    plugin_start_gfx();
-
-    switch (current_rsp_type)
-    {
-      case RSP_PLUGIN_HLE:
-         rsp = rsp_hle;
-         break;
-      case RSP_PLUGIN_CXD4:
-#ifdef HAVE_LLE
-         rsp = rsp_cxd4;
-#endif // HAVE_LLE
-         break;
-      case RSP_PLUGIN_PARALLEL:
-#ifdef HAVE_PARALLEL_RSP
-         rsp = rsp_parallelRSP;
-#endif // HAVE_PARALLEL_RSP
-         break;
-      case RSP_PLUGIN_NONE:
-      default:
-         break;
-    }
-
-    l_RspAttached = 1;
-    plugin_start_rsp();
-
-    audio = dummy_audio;
-    l_AudioAttached = 1;
-    //plugin_start_audio();
-    
-    input = dummy_input;
-    l_InputAttached = 1;
-    plugin_start_input();
-}
-#else
 /* global functions */
 void plugin_connect_all()
 {
@@ -497,5 +388,3 @@ void plugin_connect_all()
     l_InputAttached = 1;
     plugin_start_input();
 }
-#endif
-

@@ -66,7 +66,6 @@ struct gSPInfo
 	struct
 	{
 		f32 rgb[12][3];
-		f32 rgb2[12][3];
 		f32 xyz[12][3];
 		f32 i_xyz[12][3];
 		f32 pos_xyzw[12][4];

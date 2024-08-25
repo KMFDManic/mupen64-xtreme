@@ -44,12 +44,9 @@ struct DepthBuffer
 	CachedTexture *m_pDepthBufferCopyTexture;
 	bool m_copied;
 
-	static void copyDepthBufferTexture(FrameBuffer * _pBuffer, CachedTexture *& _pTexture, graphics::ObjectHandle _copyFBO);
-	static void _initDepthBufferTexture(const FrameBuffer * _pBuffer, CachedTexture *_pTexture, bool _multisample);
-
 private:
-	static void _initDepthImageTexture(FrameBuffer * _pBuffer, CachedTexture& _cachedTexture, graphics::ObjectHandle & _clearFBO);
-
+	void _initDepthImageTexture(FrameBuffer * _pBuffer, CachedTexture& _cachedTexture, graphics::ObjectHandle & _clearFBO);
+	void _initDepthBufferTexture(FrameBuffer * _pBuffer, CachedTexture *_pTexture, bool _multisample);
 	void _initDepthBufferRenderbuffer(FrameBuffer * _pBuffer);
 };
 

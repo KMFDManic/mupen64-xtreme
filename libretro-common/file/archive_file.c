@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (archive_file.c).
@@ -162,47 +162,55 @@ static int file_archive_get_file_list_cb(
       struct archive_extract_userdata *userdata)
 {
    union string_list_elem_attr attr;
+   int ret                      = 0;
+   struct string_list *ext_list = NULL;
+   size_t path_len              = strlen(path);
+
+   (void)cdata;
+   (void)cmode;
+   (void)csize;
+   (void)size;
+   (void)checksum;
+
    attr.i = 0;
 
+   if (!path_len)
+      return 0;
+
    if (valid_exts)
+      ext_list = string_split(valid_exts, "|");
+
+   if (ext_list)
    {
-      size_t path_len              = strlen(path);
+      const char *file_ext         = NULL;
       /* Checks if this entry is a directory or a file. */
-      char last_char               = path[path_len - 1];
-      struct string_list *ext_list = NULL;
+      char last_char = path[path_len-1];
 
       /* Skip if directory. */
       if (last_char == '/' || last_char == '\\' )
+         goto error;
+
+      file_ext = path_get_extension(path);
+
+      if (!file_ext)
+         goto error;
+
+      if (!string_list_find_elem_prefix(ext_list, ".", file_ext))
       {
-         string_list_free(ext_list);
-         return 0;
+         /* keep iterating */
+         ret = -1;
+         goto error;
       }
-      
-      ext_list                = string_split(valid_exts, "|");
 
-      if (ext_list)
-      {
-         const char *file_ext = path_get_extension(path);
-
-         if (!file_ext)
-         {
-            string_list_free(ext_list);
-            return 0;
-         }
-
-         if (!string_list_find_elem_prefix(ext_list, ".", file_ext))
-         {
-            /* keep iterating */
-            string_list_free(ext_list);
-            return -1;
-         }
-
-         attr.i = RARCH_COMPRESSED_FILE_IN_ARCHIVE;
-         string_list_free(ext_list);
-      }
+      attr.i = RARCH_COMPRESSED_FILE_IN_ARCHIVE;
+      string_list_free(ext_list);
    }
 
    return string_list_append(userdata->list, path, attr);
+
+error:
+   string_list_free(ext_list);
+   return ret;
 }
 
 static int file_archive_extract_cb(const char *name, const char *valid_exts,
@@ -406,7 +414,9 @@ int file_archive_parse_file_iterate(
                   valid_exts, userdata, file_cb);
 
             if (ret != 1)
+            {
                state->type = ARCHIVE_TRANSFER_DEINIT;
+            }
             if (ret == -1)
                state->type = ARCHIVE_TRANSFER_DEINIT_ERROR;
 
@@ -584,6 +594,7 @@ end:
 struct string_list *file_archive_get_file_list(const char *path,
       const char *valid_exts)
 {
+   int ret;
    struct archive_extract_userdata userdata;
 
    strlcpy(userdata.archive_path, path, sizeof(userdata.archive_path));
@@ -608,9 +619,14 @@ struct string_list *file_archive_get_file_list(const char *path,
    if (!userdata.list)
       goto error;
 
-   if (!file_archive_walk(path, valid_exts,
-         file_archive_get_file_list_cb, &userdata))
-      goto error;
+   ret = file_archive_walk(path, valid_exts,
+         file_archive_get_file_list_cb, &userdata);
+
+   if (ret <= 0)
+   {
+      if (ret != -1)
+         goto error;
+   }
 
    return userdata.list;
 
@@ -628,7 +644,7 @@ bool file_archive_perform_mode(const char *path, const char *valid_exts,
    {
       case ARCHIVE_MODE_UNCOMPRESSED:
          if (!filestream_write_file(path, cdata, size))
-            return false;
+            goto error;
          break;
 
       case ARCHIVE_MODE_COMPRESSED:
@@ -642,11 +658,11 @@ bool file_archive_perform_mode(const char *path, const char *valid_exts,
             handle.backend       = file_archive_get_file_backend(userdata->archive_path);
 
             if (!handle.backend)
-               return false;
+               goto error;
 
             if (!handle.backend->stream_decompress_data_to_file_init(&handle,
                      cdata, csize, size))
-               return false;
+               goto error;
 
             do
             {
@@ -657,14 +673,17 @@ bool file_archive_perform_mode(const char *path, const char *valid_exts,
             if (!file_archive_decompress_data_to_file(&handle,
                      ret, path, valid_exts,
                      cdata, csize, size, crc32))
-               return false;
+               goto error;
          }
          break;
       default:
-         return false;
+         goto error;
    }
 
    return true;
+
+error:
+   return false;
 }
 
 /**
@@ -717,9 +736,9 @@ int file_archive_compressed_read(
       const char * path, void **buf,
       const char* optional_filename, int64_t *length)
 {
-   const struct 
-      file_archive_file_backend *backend = NULL;
-   struct string_list *str_list          = NULL;
+   const struct file_archive_file_backend *backend = NULL;
+   int ret                            = 0;
+   struct string_list *str_list       = file_archive_filename_split(path);
 
    /* Safety check.
     * If optional_filename and optional_filename
@@ -727,13 +746,13 @@ int file_archive_compressed_read(
     * hoping that optional_filename is the
     * same as requested.
     */
-   if (optional_filename && path_is_valid(optional_filename))
+   if (optional_filename && filestream_exists(optional_filename))
    {
       *length = 0;
+      string_list_free(str_list);
       return 1;
    }
 
-   str_list       = file_archive_filename_split(path);
    /* We assure that there is something after the '#' symbol.
     *
     * This error condition happens for example, when
@@ -741,22 +760,23 @@ int file_archive_compressed_read(
     * path = /path/to/file.7z#
     */
    if (str_list->size <= 1)
-   {
-      /* could not extract string and substring. */
-      string_list_free(str_list);
-      *length = 0;
-      return 0;
-   }
+      goto error;
 
    backend = file_archive_get_file_backend(str_list->elems[0].data);
+
    *length = backend->compressed_file_read(str_list->elems[0].data,
          str_list->elems[1].data, buf, optional_filename);
 
-   string_list_free(str_list);
-
    if (*length != -1)
-      return 1;
+      ret = 1;
 
+   string_list_free(str_list);
+   return ret;
+
+error:
+   /* could not extract string and substring. */
+   string_list_free(str_list);
+   *length = 0;
    return 0;
 }
 
@@ -780,7 +800,6 @@ const struct file_archive_file_backend *file_archive_get_7z_file_backend(void)
 
 const struct file_archive_file_backend* file_archive_get_file_backend(const char *path)
 {
-#if defined(HAVE_7ZIP) || defined(HAVE_ZLIB)
    char newpath[PATH_MAX_LENGTH];
    const char *file_ext          = NULL;
    char *last                    = NULL;
@@ -807,7 +826,6 @@ const struct file_archive_file_backend* file_archive_get_file_backend(const char
       )
       return &zlib_backend;
 #endif
-#endif
 
    return NULL;
 }
@@ -823,10 +841,16 @@ const struct file_archive_file_backend* file_archive_get_file_backend(const char
 uint32_t file_archive_get_file_crc32(const char *path)
 {
    file_archive_transfer_t state;
+   const struct file_archive_file_backend *backend = file_archive_get_file_backend(path);
    struct archive_extract_userdata userdata        = {{0}};
    bool returnerr                                  = false;
+   bool contains_compressed                        = false;
    const char *archive_path                        = NULL;
-   bool contains_compressed = path_contains_compressed_file(path);
+
+   if (!backend)
+      return 0;
+
+   contains_compressed = path_contains_compressed_file(path);
 
    if (contains_compressed)
    {

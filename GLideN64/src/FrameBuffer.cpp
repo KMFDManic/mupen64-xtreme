@@ -62,25 +62,18 @@ FrameBuffer::FrameBuffer()
 	, m_validityChecked(0)
 {
 	m_loadTileOrigin.uls = m_loadTileOrigin.ult = 0;
-	m_pTexture = textureCache().addFrameBufferTexture(config.video.multisampling != 0 ?
-		textureTarget::TEXTURE_2D_MULTISAMPLE : textureTarget::TEXTURE_2D);
+	m_pTexture = textureCache().addFrameBufferTexture(config.video.multisampling != 0);
 	m_FBO = gfxContext.createFramebuffer();
-
-	m_pDepthTexture = nullptr;
-	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer != 0)
-		m_depthFBO = gfxContext.createFramebuffer();
 }
 
 FrameBuffer::~FrameBuffer()
 {
 	gfxContext.deleteFramebuffer(m_FBO);
-	gfxContext.deleteFramebuffer(m_depthFBO);
 	gfxContext.deleteFramebuffer(m_resolveFBO);
 	gfxContext.deleteFramebuffer(m_SubFBO);
 	gfxContext.deleteFramebuffer(m_copyFBO);
 
 	textureCache().removeFrameBufferTexture(m_pTexture);
-	textureCache().removeFrameBufferTexture(m_pDepthTexture);
 	textureCache().removeFrameBufferTexture(m_pResolveTexture);
 	textureCache().removeFrameBufferTexture(m_pSubTexture);
 	textureCache().removeFrameBufferTexture(m_pFrameBufferCopyTexture);
@@ -105,9 +98,9 @@ void _initFrameBufferTexture(u32 _address, u16 _width, u16 _height, f32 _scale, 
 	_pTexture->maskT = 0;
 	_pTexture->mirrorS = 0;
 	_pTexture->mirrorT = 0;
-	_pTexture->textureBytes = _pTexture->width * _pTexture->height;
-	_pTexture->hdRatioS = _scale;
-	_pTexture->hdRatioT = _scale;
+	_pTexture->realWidth = _pTexture->width;
+	_pTexture->realHeight = _pTexture->height;
+	_pTexture->textureBytes = _pTexture->realWidth * _pTexture->realHeight;
 	if (_size > G_IM_SIZ_8b)
 		_pTexture->textureBytes *= fbTexFormats.colorFormatBytes;
 	else
@@ -128,8 +121,8 @@ void _setAndAttachBufferTexture(ObjectHandle _fbo, CachedTexture *_pTexture, u32
 	initParams.textureUnitIndex = textureIndices::Tex[_t];
 	if (_multisampling)
 		initParams.msaaLevel = config.video.multisampling;
-	initParams.width = _pTexture->width;
-	initParams.height = _pTexture->height;
+	initParams.width = _pTexture->realWidth;
+	initParams.height = _pTexture->realHeight;
 	if (_pTexture->size > G_IM_SIZ_8b) {
 		initParams.internalFormat = fbTexFormat.colorInternalFormat;
 		initParams.format = fbTexFormat.colorFormat;
@@ -184,7 +177,7 @@ void FrameBuffer::init(u32 _address, u16 _format, u16 _size, u16 _width, bool _c
 	} else if (config.frameBufferEmulation.nativeResFactor != 0 && config.frameBufferEmulation.enable != 0) {
 		m_scale = static_cast<float>(config.frameBufferEmulation.nativeResFactor);
 	} else {
-		m_scale = std::max(dwnd().getScaleX(), 1.0f);
+		m_scale = dwnd().getScaleX();
 	}
 	m_cfb = _cfb;
 	m_cleared = false;
@@ -198,7 +191,7 @@ void FrameBuffer::init(u32 _address, u16 _format, u16 _size, u16 _width, bool _c
 		_setAndAttachTexture(m_FBO, m_pTexture, 0, true);
 		m_pTexture->frameBufferTexture = CachedTexture::fbMultiSample;
 
-		m_pResolveTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+		m_pResolveTexture = textureCache().addFrameBufferTexture(false);
 		_initTexture(_width, maxHeight, _format, _size, m_pResolveTexture);
 		m_resolveFBO = gfxContext.createFramebuffer();
 		_setAndAttachTexture(m_resolveFBO, m_pResolveTexture, 0, false);
@@ -338,12 +331,12 @@ void FrameBuffer::resolveMultisampledTexture(bool _bForce)
 	blitParams.drawBuffer = m_resolveFBO;
 	blitParams.srcX0 = 0;
 	blitParams.srcY0 = 0;
-	blitParams.srcX1 = m_pTexture->width;
-	blitParams.srcY1 = m_pTexture->height;
+	blitParams.srcX1 = m_pTexture->realWidth;
+	blitParams.srcY1 = m_pTexture->realHeight;
 	blitParams.dstX0 = 0;
 	blitParams.dstY0 = 0;
-	blitParams.dstX1 = m_pResolveTexture->width;
-	blitParams.dstY1 = m_pResolveTexture->height;
+	blitParams.dstX1 = m_pResolveTexture->realWidth;
+	blitParams.dstY1 = m_pResolveTexture->realHeight;
 	blitParams.mask = blitMask::COLOR_BUFFER;
 	blitParams.filter = textureParameters::FILTER_NEAREST;
 
@@ -353,12 +346,6 @@ void FrameBuffer::resolveMultisampledTexture(bool _bForce)
 
 	frameBufferList().setCurrentDrawBuffer();
 	m_resolved = true;
-}
-
-void FrameBuffer::copyDepthTexture()
-{
-	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer != 0)
-		DepthBuffer::copyDepthBufferTexture(this, m_pDepthTexture, m_depthFBO);
 }
 
 bool FrameBuffer::_initSubTexture(u32 _t)
@@ -380,15 +367,13 @@ bool FrameBuffer::_initSubTexture(u32 _t)
 		textureCache().removeFrameBufferTexture(m_pSubTexture);
 	}
 
-	m_pSubTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+	m_pSubTexture = textureCache().addFrameBufferTexture(false);
 	_initTexture(width, height, m_pTexture->format, m_pTexture->size, m_pSubTexture);
 
 	m_pSubTexture->clampS = pTile->clamps;
 	m_pSubTexture->clampT = pTile->clampt;
 	m_pSubTexture->offsetS = 0.0f;
 	m_pSubTexture->offsetT = 0.0f;
-	m_pSubTexture->hdRatioS = m_pTexture->hdRatioS;
-	m_pSubTexture->hdRatioT = m_pTexture->hdRatioT;
 
 
 	_setAndAttachTexture(m_SubFBO, m_pSubTexture, _t, false);
@@ -406,12 +391,12 @@ CachedTexture * FrameBuffer::_getSubTexture(u32 _t)
 
 	s32 x0 = (s32)(m_pTexture->offsetS * m_scale);
 	s32 y0 = (s32)(m_pTexture->offsetT * m_scale);
-	s32 copyWidth = m_pSubTexture->width;
-	if (x0 + copyWidth > m_pTexture->width)
-		copyWidth = m_pTexture->width - x0;
-	s32 copyHeight = m_pSubTexture->height;
-	if (y0 + copyHeight > m_pTexture->height)
-		copyHeight = m_pTexture->height - y0;
+	s32 copyWidth = m_pSubTexture->realWidth;
+	if (x0 + copyWidth > m_pTexture->realWidth)
+		copyWidth = m_pTexture->realWidth - x0;
+	s32 copyHeight = m_pSubTexture->realHeight;
+	if (y0 + copyHeight > m_pTexture->realHeight)
+		copyHeight = m_pTexture->realHeight - y0;
 
 	ObjectHandle readFBO = m_FBO;
 	if (Context::WeakBlitFramebuffer &&
@@ -446,8 +431,7 @@ CachedTexture * FrameBuffer::_getSubTexture(u32 _t)
 void FrameBuffer::_initCopyTexture()
 {
 	m_copyFBO = gfxContext.createFramebuffer();
-	m_pFrameBufferCopyTexture = textureCache().addFrameBufferTexture(config.video.multisampling != 0 ?
-		textureTarget::TEXTURE_2D_MULTISAMPLE : textureTarget::TEXTURE_2D);
+	m_pFrameBufferCopyTexture = textureCache().addFrameBufferTexture(config.video.multisampling != 0);
 	_initTexture(m_width, VI_GetMaxBufferHeight(m_width), m_pTexture->format, m_pTexture->size, m_pFrameBufferCopyTexture);
 	_setAndAttachTexture(m_copyFBO, m_pFrameBufferCopyTexture, 0, config.video.multisampling != 0);
 	if (config.video.multisampling != 0)
@@ -467,12 +451,12 @@ CachedTexture * FrameBuffer::_copyFrameBufferTexture()
 	blitParams.drawBuffer = m_copyFBO;
 	blitParams.srcX0 = 0;
 	blitParams.srcY0 = 0;
-	blitParams.srcX1 = m_pTexture->width;
-	blitParams.srcY1 = m_pTexture->height;
+	blitParams.srcX1 = m_pTexture->realWidth;
+	blitParams.srcY1 = m_pTexture->realHeight;
 	blitParams.dstX0 = 0;
 	blitParams.dstY0 = 0;
-	blitParams.dstX1 = m_pTexture->width;
-	blitParams.dstY1 = m_pTexture->height;
+	blitParams.dstX1 = m_pTexture->realWidth;
+	blitParams.dstY1 = m_pTexture->realHeight;
 	blitParams.mask = blitMask::COLOR_BUFFER;
 	blitParams.filter = textureParameters::FILTER_NEAREST;
 
@@ -513,8 +497,8 @@ CachedTexture * FrameBuffer::getTexture(u32 _t)
 	if (!getDepthTexture && (gSP.textureTile[_t]->clamps == 0 || gSP.textureTile[_t]->clampt == 0))
 		pTexture = _getSubTexture(_t);
 
-	pTexture->scaleS = m_scale / (float)pTexture->width;
-	pTexture->scaleT = m_scale / (float)pTexture->height;
+	pTexture->scaleS = m_scale / (float)pTexture->realWidth;
+	pTexture->scaleT = m_scale / (float)pTexture->realHeight;
 
 	if (gSP.textureTile[_t]->shifts > 10)
 		pTexture->shiftScaleS = (float)(1 << (16 - gSP.textureTile[_t]->shifts));
@@ -544,8 +528,8 @@ CachedTexture * FrameBuffer::getTextureBG(u32 _t)
 			pTexture = _copyFrameBufferTexture();
 	}
 
-	pTexture->scaleS = m_scale / (float)pTexture->width;
-	pTexture->scaleT = m_scale / (float)pTexture->height;
+	pTexture->scaleS = m_scale / (float)pTexture->realWidth;
+	pTexture->scaleT = m_scale / (float)pTexture->realHeight;
 
 	pTexture->shiftScaleS = 1.0f;
 	pTexture->shiftScaleT = 1.0f;
@@ -595,7 +579,7 @@ void FrameBufferList::setBufferChanged(f32 _maxY)
 void FrameBufferList::clearBuffersChanged()
 {
 	gDP.colorImage.changed = FALSE;
-	FrameBuffer * pBuffer = frameBufferList().findBuffer(*REG.VI_ORIGIN & 0xffffff);
+	FrameBuffer * pBuffer = frameBufferList().findBuffer(*REG.VI_ORIGIN);
 	if (pBuffer != nullptr)
 		pBuffer->m_changed = false;
 }
@@ -936,18 +920,18 @@ void FrameBufferList::attachDepthBuffer()
 		bool goodDepthBufferTexture = false;
 		if (Context::DepthFramebufferTextures) {
 			if (Context::WeakBlitFramebuffer)
-				goodDepthBufferTexture = pDepthBuffer->m_pDepthBufferTexture->width == pCurrent->m_pTexture->width;
+				goodDepthBufferTexture = pDepthBuffer->m_pDepthBufferTexture->realWidth == pCurrent->m_pTexture->realWidth;
 			else
-				goodDepthBufferTexture = pDepthBuffer->m_pDepthBufferTexture->width >= pCurrent->m_pTexture->width ||
+				goodDepthBufferTexture = pDepthBuffer->m_pDepthBufferTexture->realWidth >= pCurrent->m_pTexture->realWidth ||
 											std::abs((s32)(pCurrent->m_width - pDepthBuffer->m_width)) < 2;
 		} else {
-			goodDepthBufferTexture = pDepthBuffer->m_depthRenderbufferWidth == pCurrent->m_pTexture->width;
+			goodDepthBufferTexture = pDepthBuffer->m_depthRenderbufferWidth == pCurrent->m_pTexture->realWidth;
 		}
 
 		if (goodDepthBufferTexture) {
 			pCurrent->m_pDepthBuffer = pDepthBuffer;
 			pDepthBuffer->setDepthAttachment(pCurrent->m_FBO, bufferTarget::DRAW_FRAMEBUFFER);
-			if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable)
+			if (config.frameBufferEmulation.N64DepthCompare != 0)
 				pDepthBuffer->bindDepthImageTexture(pCurrent->m_FBO);
 		} else
 			pCurrent->m_pDepthBuffer = nullptr;
@@ -1013,6 +997,8 @@ void FrameBufferList::_renderScreenSizeBuffer()
 
 	gfxContext.clearColorBuffer(0.0f, 0.0f, 0.0f, 0.0f);
 
+	TextureParam filter = textureParameters::FILTER_LINEAR;
+
 	GraphicsDrawer::BlitOrCopyRectParams blitParams;
 	blitParams.srcX0 = srcCoord[0];
 	blitParams.srcY0 = srcCoord[3];
@@ -1026,14 +1012,10 @@ void FrameBufferList::_renderScreenSizeBuffer()
 	blitParams.dstY1 = dstCoord[3];
 	blitParams.dstWidth = screenWidth;
 	blitParams.dstHeight = screenHeight + wndHeightOffset;
-	blitParams.filter = config.generalEmulation.enableHybridFilter > 0 ?
-		textureParameters::FILTER_LINEAR :
-		textureParameters::FILTER_NEAREST;
+	blitParams.filter = filter;
 	blitParams.mask = blitMask::COLOR_BUFFER;
 	blitParams.tex[0] = pBufferTexture;
-	const bool downscale = blitParams.srcWidth >= blitParams.dstWidth && blitParams.srcHeight >= blitParams.dstHeight;
-	blitParams.combiner = downscale ? CombinerInfo::get().getTexrectDownscaleCopyProgram() :
-		CombinerInfo::get().getTexrectUpscaleCopyProgram();
+	blitParams.combiner = CombinerInfo::get().getTexrectCopyProgram();
 	blitParams.readBuffer = pFilteredBuffer->m_FBO;
 
 	drawer.blitOrCopyTexturedRect(blitParams);
@@ -1260,12 +1242,6 @@ void FrameBufferList::OverscanBuffer::destroy()
 	m_FBO = graphics::ObjectHandle::null;
 	textureCache().removeFrameBufferTexture(m_pTexture);
 	m_pTexture = nullptr;
-	textureCache().removeFrameBufferTexture(m_pDepthTexture);
-	m_pDepthTexture = nullptr;
-#if defined(OS_WINDOWS)
-	gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
-	gfxContext.clearDepthBuffer();
-#endif
 }
 
 void FrameBufferList::OverscanBuffer::setInputBuffer(const FrameBuffer *  _pBuffer)
@@ -1282,7 +1258,7 @@ void FrameBufferList::OverscanBuffer::setInputBuffer(const FrameBuffer *  _pBuff
 	}
 
 	textureCache().removeFrameBufferTexture(m_pTexture);
-	m_pTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+	m_pTexture = textureCache().addFrameBufferTexture(false);
 	const CachedTexture * pSrcTexture = _pBuffer->m_pTexture;
 	_initFrameBufferTexture(0,
 		_pBuffer->m_width,
@@ -1295,21 +1271,6 @@ void FrameBufferList::OverscanBuffer::setInputBuffer(const FrameBuffer *  _pBuff
 	m_scale = _pBuffer->m_scale;
 	m_drawingWidth = m_bufferWidth = m_pTexture->width;
 	m_bufferHeight = m_pTexture->height;
-
-	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer == 0)
-		return;
-
-	// Init depth texture
-	textureCache().removeFrameBufferTexture(m_pDepthTexture);
-	m_pDepthTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
-	DepthBuffer::_initDepthBufferTexture(_pBuffer, m_pDepthTexture, false);
-	Context::FrameBufferRenderTarget params;
-	params.attachment = bufferAttachment::DEPTH_ATTACHMENT;
-	params.bufferHandle = m_FBO;
-	params.bufferTarget = bufferTarget::DRAW_FRAMEBUFFER;
-	params.textureHandle = m_pDepthTexture->name;
-	params.textureTarget = textureTarget::TEXTURE_2D;
-	gfxContext.addFrameBufferRenderTarget(params);
 }
 
 void FrameBufferList::OverscanBuffer::activate()
@@ -1331,9 +1292,6 @@ void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
 	GraphicsDrawer & drawer = wnd.getDrawer();
 
 	gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
-#if defined(OS_WINDOWS)
-	gfxContext.clearDepthBuffer();
-#endif
 	GraphicsDrawer::BlitOrCopyRectParams blitParams;
 	const auto & overscan = _PAL ? config.frameBufferEmulation.overscanPAL : config.frameBufferEmulation.overscanNTSC;
 	const s32 left = static_cast<s32>(overscan.left * m_scale);
@@ -1344,31 +1302,18 @@ void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
 	blitParams.srcY0 = static_cast<s32>(_fullHeight * m_scale) - bottom;
 	blitParams.srcX1 = m_bufferWidth - right;
 	blitParams.srcY1 = top;
-	blitParams.srcWidth = m_pTexture->width;
-	blitParams.srcHeight = m_pTexture->height;
+	blitParams.srcWidth = m_pTexture->realWidth;
+	blitParams.srcHeight = m_pTexture->realHeight;
 	blitParams.dstX0 = m_hOffset;
 	blitParams.dstY0 = m_vOffset + wnd.getHeightOffset();
 	blitParams.dstX1 = m_hOffset + wnd.getWidth();
 	blitParams.dstY1 = m_vOffset + wnd.getHeight() + wnd.getHeightOffset();
 	blitParams.dstWidth = wnd.getScreenWidth();
 	blitParams.dstHeight = wnd.getScreenHeight() + wnd.getHeightOffset();
-	blitParams.filter = config.generalEmulation.enableHybridFilter > 0 ?
-		textureParameters::FILTER_LINEAR :
-		textureParameters::FILTER_NEAREST;
+	blitParams.filter = textureParameters::FILTER_LINEAR;
 	blitParams.mask = blitMask::COLOR_BUFFER;
 	blitParams.tex[0] = m_pTexture;
-	const bool downscale = blitParams.srcWidth >= blitParams.dstWidth && blitParams.srcHeight >= blitParams.dstHeight;
-	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer != 0) {
-		blitParams.tex[1] = m_pDepthTexture;
-		blitParams.combiner = downscale ? CombinerInfo::get().getTexrectColorAndDepthDownscaleCopyProgram() :
-			CombinerInfo::get().getTexrectColorAndDepthUpscaleCopyProgram();
-	}
-	if (blitParams.combiner == nullptr) {
-		// copyDepthToMainDepthBuffer not set or not supported
-		blitParams.combiner = downscale ? CombinerInfo::get().getTexrectDownscaleCopyProgram() :
-			CombinerInfo::get().getTexrectUpscaleCopyProgram();
-	}
-
+	blitParams.combiner = CombinerInfo::get().getTexrectCopyProgram();
 	blitParams.readBuffer = m_FBO;
 	blitParams.invertY = false;
 
@@ -1485,8 +1430,8 @@ void FrameBufferList::renderBuffer()
 	s32 srcCoord[4] = { (s32)((XoffsetLeft) * srcScaleX) + cutleft,
 						(s32)(srcY0*srcScaleY),
 						(s32)((srcWidth + XoffsetLeft - XoffsetRight) * srcScaleX) - cutright,
-						min((s32)(srcY1*srcScaleY), (s32)pBufferTexture->height) };
-	if (srcCoord[2] > pBufferTexture->width || srcCoord[3] > pBufferTexture->height) {
+						min((s32)(srcY1*srcScaleY), (s32)pBufferTexture->realHeight) };
+	if (srcCoord[2] > pBufferTexture->realWidth || srcCoord[3] > pBufferTexture->realHeight) {
 		removeBuffer(pBuffer->m_startAddress);
 		return;
 	}
@@ -1498,6 +1443,7 @@ void FrameBufferList::renderBuffer()
 						hOffset + dstX1,
 						vOffset + (s32)(dstY1*dstScaleY) };
 
+	TextureParam filter = textureParameters::FILTER_LINEAR;
 	ObjectHandle readBuffer;
 
 	if (pFilteredBuffer->m_pTexture->frameBufferTexture == CachedTexture::fbMultiSample) {
@@ -1510,39 +1456,24 @@ void FrameBufferList::renderBuffer()
 
 	m_overscan.activate();
 	gfxContext.clearColorBuffer(0.0f, 0.0f, 0.0f, 0.0f);
-#if defined(OS_WINDOWS)
-	gfxContext.clearDepthBuffer();
-#endif
 
 	GraphicsDrawer::BlitOrCopyRectParams blitParams;
 	blitParams.srcX0 = srcCoord[0];
 	blitParams.srcY0 = srcCoord[1];
 	blitParams.srcX1 = srcCoord[2];
 	blitParams.srcY1 = srcCoord[3];
-	blitParams.srcWidth = pBufferTexture->width;
-	blitParams.srcHeight = pBufferTexture->height;
+	blitParams.srcWidth = pBufferTexture->realWidth;
+	blitParams.srcHeight = pBufferTexture->realHeight;
 	blitParams.dstX0 = dstCoord[0];
 	blitParams.dstY0 = dstCoord[1];
 	blitParams.dstX1 = dstCoord[2];
 	blitParams.dstY1 = dstCoord[3];
 	blitParams.dstWidth = m_overscan.getBufferWidth();
 	blitParams.dstHeight = m_overscan.getBufferHeight();
-	blitParams.filter = config.generalEmulation.enableHybridFilter > 0 ?
-		textureParameters::FILTER_LINEAR :
-		textureParameters::FILTER_NEAREST;
+	blitParams.filter = filter;
 	blitParams.mask = blitMask::COLOR_BUFFER;
 	blitParams.tex[0] = pBufferTexture;
-	const bool downscale = blitParams.srcWidth >= blitParams.dstWidth && blitParams.srcHeight >= blitParams.dstHeight;
-	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer != 0) {
-		blitParams.tex[1] = pBuffer->m_pDepthTexture;
-		blitParams.combiner = downscale ? CombinerInfo::get().getTexrectColorAndDepthDownscaleCopyProgram():
-			CombinerInfo::get().getTexrectColorAndDepthUpscaleCopyProgram();
-	}
-	if (blitParams.combiner == nullptr) {
-		// copyDepthToMainDepthBuffer not set or not supported
-		blitParams.combiner = downscale ? CombinerInfo::get().getTexrectDownscaleCopyProgram() :
-			CombinerInfo::get().getTexrectUpscaleCopyProgram();
-	}
+	blitParams.combiner = CombinerInfo::get().getTexrectCopyProgram();
 	blitParams.readBuffer = readBuffer;
 	blitParams.invertY = config.frameBufferEmulation.enableOverscan == 0;
 
@@ -1560,22 +1491,21 @@ void FrameBufferList::renderBuffer()
 			pFilteredBuffer->resolveMultisampledTexture();
 			readBuffer = pFilteredBuffer->m_resolveFBO;
 			pBufferTexture = pFilteredBuffer->m_pResolveTexture;
-		} else {
+		}
+		else {
 			readBuffer = pFilteredBuffer->m_FBO;
 			pBufferTexture = pFilteredBuffer->m_pTexture;
 		}
 
 		blitParams.srcY0 = 0;
-		blitParams.srcY1 = min((s32)(srcY1*srcScaleY), (s32)pFilteredBuffer->m_pTexture->height);
-		blitParams.srcWidth = pBufferTexture->width;
-		blitParams.srcHeight = pBufferTexture->height;
+		blitParams.srcY1 = min((s32)(srcY1*srcScaleY), (s32)pFilteredBuffer->m_pTexture->realHeight);
+		blitParams.srcWidth = pBufferTexture->realWidth;
+		blitParams.srcHeight = pBufferTexture->realHeight;
 		blitParams.dstY0 = vOffset + (s32)(dstY0*dstScaleY);
 		blitParams.dstY1 = vOffset + (s32)(dstY1*dstScaleY);
 		blitParams.dstWidth = m_overscan.getBufferWidth();
 		blitParams.dstHeight = m_overscan.getBufferHeight();
 		blitParams.tex[0] = pBufferTexture;
-		blitParams.tex[1] = pNextBuffer->m_pDepthTexture;
-		blitParams.mask = blitMask::COLOR_BUFFER;
 		blitParams.readBuffer = readBuffer;
 
 		drawer.copyTexturedRect(blitParams);

@@ -29,15 +29,17 @@
 class TxTexCache : public TxCache
 {
 private:
-	bool _cacheDumped;
+	boolean _cacheDumped;
 
-	tx_wstring _getFileName() const override;
-	int _getConfig() const override;
+	tx_wstring _getFileName() const;
+	int _getConfig() const;
 
 public:
   ~TxTexCache();
-  TxTexCache(int options, int cachesize, const wchar_t *cachePath, const wchar_t *ident, dispInfoFuncExt callback);
-	bool add(uint64 checksum /* checksum hi:palette low:texture */, GHQTexInfo *info);
+  TxTexCache(int options, int cachesize, const wchar_t *cachePath, const wchar_t *ident,
+             dispInfoFuncExt callback);
+  boolean add(uint64 checksum, /* checksum hi:palette low:texture */
+              GHQTexInfo *info);
   void dump();
 };
 

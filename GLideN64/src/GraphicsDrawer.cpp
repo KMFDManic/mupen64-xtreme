@@ -118,7 +118,7 @@ void GraphicsDrawer::_updateDepthUpdate() const
 
 void GraphicsDrawer::_updateDepthCompare() const
 {
-	if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
+	if (config.frameBufferEmulation.N64DepthCompare != 0) {
 		gfxContext.enable(enable::DEPTH_TEST, false);
 		gfxContext.enableDepthWrite(false);
 	}
@@ -236,16 +236,6 @@ float _adjustViewportX(f32 _X0)
 	return (_X0 + halfVP - halfX) * dwnd().getAdjustScale() + halfX - halfVP;
 }
 
-inline
-void _adjustViewportToClipRatio(s32 & x, s32 & y, s32 & width, s32 & height)
-{
-	x -= (gSP.clipRatio - 1) * width / 2;
-	y -= (gSP.clipRatio - 1) * height / 2;
-	width *= gSP.clipRatio;
-	height *= gSP.clipRatio;
-}
-
-
 void GraphicsDrawer::_updateViewport() const
 {
 	DisplayWindow & wnd = DisplayWindow::get();
@@ -256,12 +246,10 @@ void GraphicsDrawer::_updateViewport() const
 		float Xf = gSP.viewport.vscale[0] < 0 ? (gSP.viewport.x + gSP.viewport.vscale[0] * 2.0f) : gSP.viewport.x;
 		if (_needAdjustCoordinate(wnd))
 			Xf = _adjustViewportX(Xf);
-		s32 X = (s32)(Xf * scaleX);
-		s32 Y = (s32)(gSP.viewport.y * scaleY);
-		s32 WIDTH = std::max((s32)(gSP.viewport.width * scaleX), 0);
-		s32 HEIGHT = std::max((s32)(gSP.viewport.height * scaleY), 0);
-		_adjustViewportToClipRatio(X, Y, WIDTH, HEIGHT);
-		gfxContext.setViewport(X, Y, WIDTH, HEIGHT);
+		const s32 X = (s32)(Xf * scaleX);
+		const s32 Y = (s32)(gSP.viewport.y * scaleY);
+		gfxContext.setViewport(X, Y,
+			std::max((s32)(gSP.viewport.width * scaleX), 0), std::max((s32)(gSP.viewport.height * scaleY), 0));
 	} else {
 		const f32 scaleX = pCurrentBuffer->m_scale;
 		const f32 scaleY = pCurrentBuffer->m_scale;
@@ -269,14 +257,12 @@ void GraphicsDrawer::_updateViewport() const
 		Xf += f32(pCurrentBuffer->m_originX);
 		if (_needAdjustCoordinate(wnd))
 			Xf = _adjustViewportX(Xf);
-		s32 X = roundup(Xf, scaleX);
+		const s32 X = roundup(Xf, scaleX);
 		float Yf = gSP.viewport.vscale[1] < 0 ? (gSP.viewport.y + gSP.viewport.vscale[1] * 2.0f) : gSP.viewport.y;
 		Yf += f32(pCurrentBuffer->m_originY);
-		s32 Y = roundup(Yf, scaleY);
-		s32 WIDTH = std::max(roundup(gSP.viewport.width, scaleX), 0);
-		s32 HEIGHT = std::max(roundup(gSP.viewport.height, scaleY), 0);
-		_adjustViewportToClipRatio(X, Y, WIDTH, HEIGHT);
-		gfxContext.setViewport(X, Y, WIDTH, HEIGHT);
+		const s32 Y = roundup(Yf, scaleY);
+		gfxContext.setViewport(X, Y,
+			std::max(roundup(gSP.viewport.width, scaleX), 0), std::max(roundup(gSP.viewport.height, scaleY), 0));
 	}
 	gSP.changed &= ~CHANGED_VIEWPORT;
 }
@@ -300,15 +286,9 @@ void GraphicsDrawer::_updateScreenCoordsViewport(const FrameBuffer * _pBuffer) c
 		viewportScaleX = viewportScaleY = pCurrentBuffer->m_scale;
 		X = roundup(f32(pCurrentBuffer->m_originX), viewportScaleX);
 		Y = roundup(f32(pCurrentBuffer->m_originY), viewportScaleY);
-		if (RSP.LLE) {
-			gSP.viewport.width = f32(bufferWidth);
-			gSP.viewport.height = f32(bufferHeight);
-		}
 	}
-	s32 WIDTH = roundup(f32(bufferWidth), viewportScaleX);
-	s32 HEIGHT = roundup(f32(bufferHeight), viewportScaleY);
-	_adjustViewportToClipRatio(X, Y, WIDTH, HEIGHT);
-	gfxContext.setViewport(X, Y, WIDTH, HEIGHT);
+
+	gfxContext.setViewport(X, Y, roundup(f32(bufferWidth), viewportScaleX), roundup(f32(bufferHeight), viewportScaleY));
 	gSP.changed |= CHANGED_VIEWPORT;
 }
 
@@ -694,7 +674,7 @@ void GraphicsDrawer::_updateStates(DrawingState _drawingState) const
 
 	if (isCurrentColorImageDepthImage() &&
 		config.generalEmulation.enableFragmentDepthWrite != 0 &&
-		config.frameBufferEmulation.N64DepthCompare == Config::dcDisable) {
+		config.frameBufferEmulation.N64DepthCompare == 0) {
 		// Current render target is depth buffer.
 		// Shader will set gl_FragDepth to shader color, see ShaderCombiner ctor
 		// Here we enable depth buffer write.
@@ -725,17 +705,17 @@ void GraphicsDrawer::_updateStates(DrawingState _drawingState) const
 	}
 }
 
-void GraphicsDrawer::_prepareDrawTriangle(DrawingState _drawingState)
+void GraphicsDrawer::_prepareDrawTriangle()
 {
 	m_texrectDrawer.draw();
 
 	if ((m_modifyVertices & MODIFY_XY) != 0)
 		gSP.changed &= ~CHANGED_VIEWPORT;
 
-	m_drawingState = _drawingState;
-
 	if (gSP.changed || gDP.changed)
-		_updateStates(_drawingState);
+		_updateStates(DrawingState::Triangle);
+
+	m_drawingState = DrawingState::Triangle;
 
 	bool bFlatColors = false;
 	if (!RSP.LLE && (gSP.geometryMode & G_LIGHTING) == 0) {
@@ -762,7 +742,7 @@ void GraphicsDrawer::drawTriangles()
 		return;
 	}
 
-	_prepareDrawTriangle(DrawingState::Triangle);
+	_prepareDrawTriangle();
 
 	Context::DrawTriangleParameters triParams;
 	triParams.mode = drawmode::TRIANGLES;
@@ -796,24 +776,16 @@ void GraphicsDrawer::drawScreenSpaceTriangle(u32 _numVtx, graphics::DrawModePara
 	if (_numVtx == 0 || !_canDraw())
 		return;
 
-	ValueKeeper<u32> otherMode(gSP.clipRatio, 1U);
-
 	f32 maxY = 0;
 	for (u32 i = 0; i < _numVtx; ++i) {
 		SPVertex & vtx = m_dmaVertices[i];
 		vtx.modify = MODIFY_ALL;
 		maxY = std::max(maxY, vtx.y);
-
-		vtx.clip = 0;
-		if (vtx.x > gSP.viewport.width) vtx.clip |= CLIP_POSX;
-		if (vtx.x < 0) vtx.clip |= CLIP_NEGX;
-		if (vtx.y > gSP.viewport.height) vtx.clip |= CLIP_POSY;
-		if (vtx.y < 0) vtx.clip |= CLIP_NEGY;
 	}
 	m_modifyVertices = MODIFY_ALL;
 
 	gSP.changed &= ~CHANGED_GEOMETRYMODE; // Don't update cull mode
-	_prepareDrawTriangle(DrawingState::ScreenSpaceTriangle);
+	_prepareDrawTriangle();
 	gfxContext.enable(enable::CULL_FACE, false);
 
 	Context::DrawTriangleParameters triParams;
@@ -826,18 +798,7 @@ void GraphicsDrawer::drawScreenSpaceTriangle(u32 _numVtx, graphics::DrawModePara
 	g_debugger.addTriangles(triParams);
 	m_dmaVerticesNum = 0;
 
-#ifndef OLD_LLE
-	if (config.frameBufferEmulation.enable != 0) {
-		const f32 maxY = renderTriangles(m_dmaVertices.data(), nullptr, _numVtx);
-		frameBufferList().setBufferChanged(maxY);
-		if (config.frameBufferEmulation.copyDepthToRDRAM == Config::cdSoftwareRender &&
-			gDP.otherMode.depthUpdate != 0) {
-			FrameBuffer * pCurrentDepthBuffer = frameBufferList().findBuffer(gDP.depthImageAddress);
-			if (pCurrentDepthBuffer != nullptr)
-				pCurrentDepthBuffer->setDirty();
-		}
-	}
-#endif
+	frameBufferList().setBufferChanged(maxY);
 	gSP.changed |= CHANGED_GEOMETRYMODE;
 }
 
@@ -845,7 +806,7 @@ void GraphicsDrawer::drawDMATriangles(u32 _numVtx)
 {
 	if (_numVtx == 0 || !_canDraw())
 		return;
-	_prepareDrawTriangle(DrawingState::Triangle);
+	_prepareDrawTriangle();
 
 
 	Context::DrawTriangleParameters triParams;
@@ -981,7 +942,6 @@ void GraphicsDrawer::drawLine(int _v0, int _v1, float _width)
 
 void GraphicsDrawer::drawRect(int _ulx, int _uly, int _lrx, int _lry)
 {
-	ValueKeeper<u32> otherMode(gSP.clipRatio, 1U);
 	m_texrectDrawer.draw();
 
 	if (!_canDraw())
@@ -1066,12 +1026,10 @@ bool texturedRectDepthBufferCopy(const GraphicsDrawer::TexturedRectParams & _par
 	// Data from depth buffer loaded into TMEM and then rendered to RDRAM by texrect.
 	// Works only with depth buffer emulation enabled.
 	// Load of arbitrary data to that area causes weird camera rotation in CBFD.
-	if (_params.uly != 0.0f || std::min(_params.lry, gDP.scissor.lry) != 1.0f)
-		return false;
 	const gDPTile * pTile = gSP.textureTile[0];
 	if (pTile->loadType == LOADTYPE_BLOCK && gDP.textureImage.size == 2 &&
 		gDP.textureImage.address >= gDP.depthImageAddress &&
-		gDP.textureImage.address < (gDP.depthImageAddress + gDP.colorImage.width*VI.height*2)) {
+		gDP.textureImage.address < (gDP.depthImageAddress + gDP.colorImage.width*gDP.scissor.lry*2)) {
 		if (config.frameBufferEmulation.copyDepthToRDRAM == Config::cdDisable)
 			return true;
 		FrameBuffer * pBuffer = frameBufferList().getCurrent();
@@ -1185,7 +1143,6 @@ void GraphicsDrawer::drawTexturedRect(const TexturedRectParams & _params)
 {
 	gSP.changed &= ~CHANGED_GEOMETRYMODE; // Don't update cull mode
 	m_drawingState = DrawingState::TexRect;
-	ValueKeeper<u32> otherMode(gSP.clipRatio, 1U);
 
 	if (m_texrectDrawer.canContinue()) {
 		CombinerInfo & cmbInfo = CombinerInfo::get();
@@ -1340,19 +1297,10 @@ void GraphicsDrawer::drawTexturedRect(const TexturedRectParams & _params)
 				}
 			}
 
-			if (gDP.otherMode.textureFilter != G_TF_POINT && gDP.otherMode.cycleType != G_CYC_COPY) {
-				texST[t].s0 -= 0.5f;
-				texST[t].t0 -= 0.5f;
-				texST[t].s1 -= 0.5f;
-				texST[t].t1 -= 0.5f;
-			}
-
-			texST[t].s0 *= cache.current[t]->hdRatioS;
-			texST[t].t0 *= cache.current[t]->hdRatioT;
-			texST[t].s1 *= cache.current[t]->hdRatioS;
-			texST[t].t1 *= cache.current[t]->hdRatioT;
-
-
+			texST[t].s0 *= cache.current[t]->scaleS;
+			texST[t].t0 *= cache.current[t]->scaleT;
+			texST[t].s1 *= cache.current[t]->scaleS;
+			texST[t].t1 *= cache.current[t]->scaleT;
 		}
 	}
 
@@ -1522,8 +1470,6 @@ bool GraphicsDrawer::isRejected(s32 _v0, s32 _v1, s32 _v2) const
 	const f32 ySign = GBI.isNegativeY() ? -1.0f : 1.0f;
 	for (u32 i = 0; i < 3; ++i) {
 		const SPVertex & v = triangles.vertices[verts[i]];
-		if ((v.modify & MODIFY_XY) != 0)
-			continue;
 		const f32 sx = gSP.viewport.vtrans[0] + (v.x / v.w) * gSP.viewport.vscale[0];
 		if (sx < rejectBox.ulx)
 			return true;
@@ -1616,15 +1562,8 @@ void GraphicsDrawer::copyTexturedRect(const CopyRectParams & _params)
 	gfxContext.setViewport(0, 0, _params.dstWidth, _params.dstHeight);
 	gfxContext.enable(enable::CULL_FACE, false);
 	gfxContext.enable(enable::BLEND, false);
-
-	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer == 0 || _params.tex[1] == nullptr) {
-		gfxContext.enable(enable::DEPTH_TEST, false);
-		gfxContext.enableDepthWrite(false);
-	} else {
-		gfxContext.setDepthCompare(compare::ALWAYS);
-		gfxContext.enableDepthWrite(true);
-		gfxContext.enable(enable::DEPTH_TEST, true);
-	}
+	gfxContext.enable(enable::DEPTH_TEST, false);
+	gfxContext.enableDepthWrite(false);
 
 	Context::DrawRectParameters rectParams;
 	rectParams.mode = drawmode::TRIANGLE_STRIP;
@@ -1656,10 +1595,10 @@ void GraphicsDrawer::blitOrCopyTexturedRect(const BlitOrCopyRectParams & _params
 	blitParams.mask = _params.mask;
 	blitParams.filter = _params.filter;
 	if (_params.invertX) {
-		std::swap(blitParams.dstX0, blitParams.dstX1);
+		std::swap(blitParams.srcX0, blitParams.srcX1);
 	}
 	if (_params.invertY) {
-		std::swap(blitParams.dstY0, blitParams.dstY1);
+		std::swap(blitParams.srcY0, blitParams.srcY1);
 	}
 
 	if (gfxContext.blitFramebuffers(blitParams))
@@ -1677,7 +1616,7 @@ void GraphicsDrawer::_initStates()
 	gfxContext.enableDepthWrite(false);
 	gfxContext.setDepthCompare(compare::ALWAYS);
 
-	if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
+	if (config.frameBufferEmulation.N64DepthCompare != 0) {
 		gfxContext.enable(enable::DEPTH_TEST, false);
 		gfxContext.enable(enable::POLYGON_OFFSET_FILL, false);
 	}

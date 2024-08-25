@@ -3,7 +3,6 @@ Debug*/
 Release*/
 build*/
 Roms/
-*.aps
 *.ncb
 *.suo
 *.sdf

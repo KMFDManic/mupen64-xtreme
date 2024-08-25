@@ -5,25 +5,14 @@
 
 #include "GLFunctions.h"
 
-#define ASSIGN_PROC_ADR(proc_type, proc_name) ptr##proc_name = rgl##proc_name
-#define ASSIGN_GL_PROC_ADR(proc_type, proc_name) ptr##proc_name = gl##proc_name
+#define ASSIGN_PROC_ADR(proc_type, proc_name) ptr##proc_name = gl##proc_name
 
-#if defined(GL_USE_DLSYM)
-// Use dlsym() to load GL symbols from the default shared object search order
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) dlsym(RTLD_DEFAULT, "gl"#proc_name)
-#else
-// Use libretro API to load GL/EGL symbols
-#define glGetProcAddress glsm_get_proc_address
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress("gl"#proc_name)
-#define GL_GET_PROC_ADR_EGL(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress("egl"#proc_name)
-#endif
-
-#if 0
 #ifdef OS_WINDOWS
+
 #define glGetProcAddress wglGetProcAddress
 #define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress("gl"#proc_name)
 
-#elif defined(VERO4K) || defined(ODROID) || defined(VC) || defined(USE_GENERIC_GLESV2)
+#elif defined(VERO4K) || defined(ODROID) || defined(VC) || defined(AMLOGIC) || 1
 
 #include <dlfcn.h>
 #define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) dlsym(gles2so, "gl"#proc_name);
@@ -48,7 +37,7 @@ typedef struct __GLXFBConfigRec *GLXFBConfig;
 #define GLX_GLXEXT_PROTOTYPES
 #include <GL/glxext.h>
 #define glGetProcAddress glXGetProcAddress
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress((const GLubyte*)"gl"#proc_name)
+#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress((const GLubyte*)#proc_name)
 
 #elif defined(OS_MAC_OS_X)
 #include <dlfcn.h>
@@ -62,7 +51,7 @@ static void* AppleGLGetProcAddress (const char *name)
 	return (image ? dlsym(image, name) : NULL);
 }
 #define glGetProcAddress AppleGLGetProcAddress
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress("gl"#proc_name)
+#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress(#proc_name)
 
 #elif defined(OS_IOS)
 #include <dlfcn.h>
@@ -73,12 +62,11 @@ static void* IOSGLGetProcAddress (const char *name)
 }
 
 #define glGetProcAddress IOSGLGetProcAddress
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type)glGetProcAddress("gl"#proc_name)
+#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type)glGetProcAddress(#proc_name)
 
 #endif
-#endif // if 0
 
-//GL Functions
+//GL Fucntions
 PFNGLBLENDFUNCPROC ptrBlendFunc;
 PFNGLPIXELSTOREIPROC ptrPixelStorei;
 PFNGLCLEARCOLORPROC ptrClearColor;
@@ -212,25 +200,19 @@ PFNGLTEXTUREBARRIERNVPROC ptrTextureBarrierNV;
 PFNGLCLEARBUFFERFVPROC ptrClearBufferfv;
 PFNGLENABLEIPROC ptrEnablei;
 PFNGLDISABLEIPROC ptrDisablei;
-PFNGLDEBUGMESSAGECALLBACKPROC ptrDebugMessageCallback;
-PFNGLDEBUGMESSAGECONTROLPROC ptrDebugMessageControl;
-PFNGLCOPYTEXIMAGE2DPROC ptrCopyTexImage2D;
 PFNGLEGLIMAGETARGETTEXTURE2DOESPROC ptrEGLImageTargetTexture2DOES;
-PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC ptrEGLImageTargetRenderbufferStorageOES;
 
 extern "C" void initGLFunctions()
 {
-#if 0
 #ifdef VC
 	void *gles2so = dlopen("/opt/vc/lib/libbrcmGLESv2.so", RTLD_NOW);
 #elif defined(ODROID)
 	void *gles2so = dlopen("/usr/lib/arm-linux-gnueabihf/libGLESv2.so", RTLD_NOW);
 #elif defined(VERO4K)
        void *gles2so = dlopen("/opt/vero3/lib/libGLESv2.so", RTLD_NOW);
-#elif defined(USE_GENERIC_GLESV2)
+#else
        void *gles2so = dlopen("/usr/lib/libGLESv2.so", RTLD_NOW);
 #endif
-#endif // if 0
 
 #if defined(EGL) || defined(OS_IOS)
 	ASSIGN_PROC_ADR(PFNGLBLENDFUNCPROC, BlendFunc);
@@ -239,8 +221,8 @@ extern "C" void initGLFunctions()
 	ASSIGN_PROC_ADR(PFNGLCULLFACEPROC, CullFace);
 	ASSIGN_PROC_ADR(PFNGLDEPTHFUNCPROC, DepthFunc);
 	ASSIGN_PROC_ADR(PFNGLDEPTHMASKPROC, DepthMask);
-	ASSIGN_PROC_ADR(PFNGLDISABLEPROC, Disable);
-	ASSIGN_PROC_ADR(PFNGLENABLEPROC, Enable);
+	GL_GET_PROC_ADR(PFNGLDISABLEPROC, Disable);
+	GL_GET_PROC_ADR(PFNGLENABLEPROC, Enable);
 	ASSIGN_PROC_ADR(PFNGLPOLYGONOFFSETPROC, PolygonOffset);
 	ASSIGN_PROC_ADR(PFNGLSCISSORPROC, Scissor);
 	ASSIGN_PROC_ADR(PFNGLVIEWPORTPROC, Viewport);
@@ -283,9 +265,9 @@ extern "C" void initGLFunctions()
 	ASSIGN_PROC_ADR(PFNGLVIEWPORTPROC, Viewport);
 	ASSIGN_PROC_ADR(PFNGLBINDTEXTUREPROC, BindTexture);
 	GL_GET_PROC_ADR(PFNGLTEXIMAGE2DPROC, TexImage2D);
-	ASSIGN_GL_PROC_ADR(PFNGLTEXPARAMETERIPROC, TexParameteri);
-	ASSIGN_GL_PROC_ADR(PFNGLGETINTEGERVPROC, GetIntegerv);
-	ASSIGN_GL_PROC_ADR(PFNGLGETSTRINGPROC, GetString);
+	ASSIGN_PROC_ADR(PFNGLTEXPARAMETERIPROC, TexParameteri);
+	ASSIGN_PROC_ADR(PFNGLGETINTEGERVPROC, GetIntegerv);
+	ASSIGN_PROC_ADR(PFNGLGETSTRINGPROC, GetString);
 	ASSIGN_PROC_ADR(PFNGLREADPIXELSPROC, ReadPixels);
 	ASSIGN_PROC_ADR(PFNGLTEXSUBIMAGE2DPROC, TexSubImage2D);
 	ASSIGN_PROC_ADR(PFNGLDRAWARRAYSPROC, DrawArrays);
@@ -293,12 +275,12 @@ extern "C" void initGLFunctions()
 	ASSIGN_PROC_ADR(PFNGLDRAWELEMENTSPROC, DrawElements);
 	ASSIGN_PROC_ADR(PFNGLLINEWIDTHPROC, LineWidth);
 	ASSIGN_PROC_ADR(PFNGLCLEARPROC, Clear);
-	ASSIGN_GL_PROC_ADR(PFNGLGETFLOATVPROC, GetFloatv);
+	ASSIGN_PROC_ADR(PFNGLGETFLOATVPROC, GetFloatv);
 	ASSIGN_PROC_ADR(PFNGLDELETETEXTURESPROC, DeleteTextures);
 	ASSIGN_PROC_ADR(PFNGLGENTEXTURESPROC, GenTextures);
 	GL_GET_PROC_ADR(PFNGLTEXPARAMETERFPROC, TexParameterf);
 	ASSIGN_PROC_ADR(PFNGLREADBUFFERPROC, ReadBuffer);
-	ASSIGN_GL_PROC_ADR(PFNGLFINISHPROC, Finish);
+	ASSIGN_PROC_ADR(PFNGLFINISHPROC, Finish);
 #endif
 
 	ASSIGN_PROC_ADR(PFNGLCREATESHADERPROC, CreateShader);
@@ -399,10 +381,5 @@ extern "C" void initGLFunctions()
 	ASSIGN_PROC_ADR(PFNGLCLEARBUFFERFVPROC, ClearBufferfv);
 	GL_GET_PROC_ADR(PFNGLENABLEIPROC, Enablei);
 	GL_GET_PROC_ADR(PFNGLDISABLEIPROC, Disablei);
-	GL_GET_PROC_ADR(PFNGLDEBUGMESSAGECALLBACKPROC, DebugMessageCallback);
-	GL_GET_PROC_ADR(PFNGLDEBUGMESSAGECONTROLPROC, DebugMessageControl);
-	GL_GET_PROC_ADR(PFNGLCOPYTEXIMAGE2DPROC, CopyTexImage2D);
-
 	GL_GET_PROC_ADR(PFNGLEGLIMAGETARGETTEXTURE2DOESPROC, EGLImageTargetTexture2DOES);
-	GL_GET_PROC_ADR(PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC, EGLImageTargetRenderbufferStorageOES);
 }

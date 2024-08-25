@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2017 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (eq.c).
@@ -233,7 +233,6 @@ static void create_filter(struct eq_data *eq, unsigned size_log2,
       time_filter[i] *= window_mod * kaiser_window_function(phase, beta);
    }
 
-#ifdef DEBUG
    /* Debugging. */
    if (filter_path)
    {
@@ -245,7 +244,6 @@ static void create_filter(struct eq_data *eq, unsigned size_log2,
          fclose(file);
       }
    }
-#endif
 
    /* Padded FFT to create our FFT filter.
     * Make our even-length filter odd by discarding the first coefficient.

@@ -89,7 +89,6 @@
 #define G_GCI_K5				18
 #define G_GCI_ONE				19
 #define G_GCI_ZERO				20
-#define G_GCI_HALF				21
 #define G_GCI_HW_LIGHT			22
 
 struct CombinerOp
@@ -127,13 +126,11 @@ public:
 	void updateParameters();
 
 	void setDepthFogCombiner();
-	graphics::ShaderProgram * getTexrectUpscaleCopyProgram();
-	graphics::ShaderProgram * getTexrectColorAndDepthUpscaleCopyProgram();
-	graphics::ShaderProgram * getTexrectDownscaleCopyProgram();
-	graphics::ShaderProgram * getTexrectColorAndDepthDownscaleCopyProgram();
+	graphics::ShaderProgram * getTexrectCopyProgram();
 
 	graphics::CombinerProgram * getCurrent() const { return m_pCurrent; }
 	bool isChanged() const {return m_bChanged;}
+	size_t getCombinersNumber() const { return m_combiners.size();  }
 	bool isShaderCacheSupported() const;
 
 	static CombinerInfo & get();
@@ -162,10 +159,7 @@ private:
 	graphics::Combiners m_combiners;
 
 	std::unique_ptr<graphics::ShaderProgram> m_shadowmapProgram;
-	std::unique_ptr<graphics::ShaderProgram> m_texrectUpscaleCopyProgram;
-	std::unique_ptr<graphics::ShaderProgram> m_texrectColorAndDepthUpscaleCopyProgram;
-	std::unique_ptr<graphics::ShaderProgram> m_texrectDownscaleCopyProgram;
-	std::unique_ptr<graphics::ShaderProgram> m_texrectColorAndDepthDownscaleCopyProgram;
+	std::unique_ptr<graphics::ShaderProgram> m_texrectCopyProgram;
 };
 
 inline

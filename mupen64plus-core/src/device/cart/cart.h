@@ -34,7 +34,6 @@
 #include <stdint.h>
 
 struct r4300_core;
-struct pi_controller;
 struct clock_backend_interface;
 struct storage_backend_interface;
 
@@ -56,7 +55,6 @@ void init_cart(struct cart* cart,
                /* cart ROM */
                uint8_t* rom, size_t rom_size,
                struct r4300_core* r4300,
-               struct pi_controller* pi,
                /* eeprom */
                uint16_t eeprom_type,
                void* eeprom_storage, const struct storage_backend_interface* ieeprom_storage,

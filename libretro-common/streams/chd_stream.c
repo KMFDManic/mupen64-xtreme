@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (chd_stream.c).
@@ -167,8 +167,6 @@ chdstream_find_special_track(chd_file *fd, int32_t track, metadata_t *meta)
          }
          else if (track == CHDSTREAM_TRACK_PRIMARY && largest_track != 0)
             return chdstream_find_track_number(fd, largest_track, meta);
-
-         return false;
       }
 
       switch (track)
@@ -248,7 +246,7 @@ chdstream_t *chdstream_open(const char *path, int32_t track)
    }
 
    /* Only include pregap data if it was in the track file */
-   if (meta.pgtype[0] != 'V')
+   if (!strcmp(meta.type, meta.pgtype))
       pregap = meta.pregap;
    else
       pregap = 0;
@@ -256,8 +254,9 @@ chdstream_t *chdstream_open(const char *path, int32_t track)
    stream->chd             = chd;
    stream->frames_per_hunk = hd->hunkbytes / hd->unitbytes;
    stream->track_frame     = meta.frame_offset;
-   stream->track_start     = (size_t)pregap * stream->frame_size;
-   stream->track_end       = stream->track_start + (size_t)meta.frames * stream->frame_size;
+   stream->track_start     = (size_t) pregap * stream->frame_size;
+   stream->track_end       = stream->track_start +
+      (size_t) meta.frames * stream->frame_size;
    stream->offset          = 0;
    stream->hunknum         = -1;
 
@@ -333,15 +332,15 @@ ssize_t chdstream_read(chdstream_t *stream, void *data, size_t bytes)
       frame_offset = stream->offset % stream->frame_size;
       amount = stream->frame_size - frame_offset;
       if (amount > end - stream->offset)
-         amount = (uint32_t)(end - stream->offset);
+         amount = end - stream->offset;
 
       /* In pregap */
       if (stream->offset < stream->track_start)
          memset(out + data_offset, 0, amount);
       else
       {
-         chd_frame = (uint32_t)(stream->track_frame +
-            (stream->offset - stream->track_start) / stream->frame_size);
+         chd_frame = stream->track_frame +
+            (stream->offset - stream->track_start) / stream->frame_size;
          hunk = chd_frame / stream->frames_per_hunk;
          hunk_offset = (chd_frame % stream->frames_per_hunk) * hd->unitbytes;
 
@@ -427,27 +426,5 @@ int64_t chdstream_seek(chdstream_t *stream, int64_t offset, int whence)
 
 ssize_t chdstream_get_size(chdstream_t *stream)
 {
-   return stream->track_end - stream->track_start;
-}
-
-uint32_t chdstream_get_track_start(chdstream_t *stream)
-{
-   metadata_t meta;
-   uint32_t frame_offset = 0;
-   uint32_t i;
-
-   for (i = 0; chdstream_get_meta(stream->chd, i, &meta); ++i)
-   {
-      if (stream->track_frame == frame_offset)
-         return meta.pregap * stream->frame_size;
-
-      frame_offset += meta.frames + meta.extra;
-   }
-
-   return 0;
-}
-
-uint32_t chdstream_get_frame_size(chdstream_t *stream)
-{
-   return stream->frame_size;
+  return stream->track_end;
 }

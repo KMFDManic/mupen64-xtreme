@@ -7,9 +7,13 @@
 #include <winlnxdefs.h>
 #endif
 
+#ifdef UNDEF_GL_GLEXT_PROTOTYPES
+// Issues on Raspberry since GL2.h defines it and causes
+// Macro shenanigans
 #ifdef GL_GLEXT_PROTOTYPES
 #undef GL_GLEXT_PROTOTYPES
 #endif // GL_GLEXT_PROTOTYPES
+#endif // UNDEF_GL_GLEXT_PROTOTYPES
 
 #ifdef EGL
 #include <GL/glcorearb.h>
@@ -52,7 +56,6 @@ typedef void (APIENTRYP PFNGLDRAWARRAYSPROC) (GLenum mode, GLint first, GLsizei 
 typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC) (GLenum mode, GLsizei count, GLenum type, const void *indices);
 typedef void (APIENTRYP PFNGLDELETETEXTURESPROC) (GLsizei n, const GLuint *textures);
 typedef void (APIENTRYP PFNGLGENTEXTURESPROC) (GLsizei n, GLuint *textures);
-typedef void (APIENTRYP PFNGLCOPYTEXIMAGE2DPROC) (GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
 #endif
 
 extern PFNGLBLENDFUNCPROC ptrBlendFunc;
@@ -195,22 +198,13 @@ extern PFNGLTEXTUREBARRIERNVPROC ptrTextureBarrierNV;
 extern PFNGLCLEARBUFFERFVPROC ptrClearBufferfv;
 extern PFNGLENABLEIPROC ptrEnablei;
 extern PFNGLDISABLEIPROC ptrDisablei;
-extern PFNGLDEBUGMESSAGECALLBACKPROC ptrDebugMessageCallback;
-extern PFNGLDEBUGMESSAGECONTROLPROC ptrDebugMessageControl;
-extern PFNGLCOPYTEXIMAGE2DPROC ptrCopyTexImage2D;
 
 typedef void (APIENTRYP PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) (GLenum target, void* image);
 extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC ptrEGLImageTargetTexture2DOES;
 
-typedef void (APIENTRYP PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC) (GLenum target, void* image);
-extern PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC ptrEGLImageTargetRenderbufferStorageOES;
-
 extern "C" void initGLFunctions();
 
 #ifndef NO_GL_WRAP
-#ifdef __LIBRETRO__
-#include <glsm/glsm_caps.h>
-#endif // __LIBRETRO__
 #define glGetError(...) opengl::FunctionWrapper::wrGetError(__VA_ARGS__)
 #define glBlendFunc(...) opengl::FunctionWrapper::wrBlendFunc(__VA_ARGS__)
 #define glPixelStorei(...) opengl::FunctionWrapper::wrPixelStorei(__VA_ARGS__)
@@ -218,8 +212,8 @@ extern "C" void initGLFunctions();
 #define glCullFace(...) opengl::FunctionWrapper::wrCullFace(__VA_ARGS__)
 #define glDepthFunc(...) opengl::FunctionWrapper::wrDepthFunc(__VA_ARGS__)
 #define glDepthMask(...) opengl::FunctionWrapper::wrDepthMask(__VA_ARGS__)
-#define glDisable(T) opengl::FunctionWrapper::wrDisable(S##T)
-#define glEnable(T) opengl::FunctionWrapper::wrEnable(S##T)
+#define glDisable(...) opengl::FunctionWrapper::wrDisable(__VA_ARGS__)
+#define glEnable(...) opengl::FunctionWrapper::wrEnable(__VA_ARGS__)
 #define glPolygonOffset(...) opengl::FunctionWrapper::wrPolygonOffset(__VA_ARGS__)
 #define glScissor(...) opengl::FunctionWrapper::wrScissor(__VA_ARGS__)
 #define glViewport(...) opengl::FunctionWrapper::wrViewport(__VA_ARGS__)
@@ -343,14 +337,8 @@ extern "C" void initGLFunctions();
 #define glClearBufferfv(...) opengl::FunctionWrapper::wrClearBufferfv(__VA_ARGS__)
 #define glEnablei(...) opengl::FunctionWrapper::wrEnablei(__VA_ARGS__)
 #define glDisablei(...) opengl::FunctionWrapper::wrDisablei(__VA_ARGS__)
-#define glCopyTexImage2D(...) opengl::FunctionWrapper::wrCopyTexImage2D(__VA_ARGS__)
-#define glDebugMessageCallback(...) opengl::FunctionWrapper::wrDebugMessageCallback(__VA_ARGS__)
-#define glDebugMessageControl(...) opengl::FunctionWrapper::wrDebugMessageControl(__VA_ARGS__)
 #define glEGLImageTargetTexture2DOES(...) opengl::FunctionWrapper::wrEGLImageTargetTexture2DOES(__VA_ARGS__)
-#define glEGLImageTargetRenderbufferStorageOES(...) opengl::FunctionWrapper::wrEGLImageTargetRenderbufferStorageOES(__VA_ARGS__)
 #endif
-
-#define GL_TEXTURE_EXTERNAL_OES 0x8D65
 
 #include "Graphics/OpenGLContext/ThreadedOpenGl/opengl_Wrapper.h"
 

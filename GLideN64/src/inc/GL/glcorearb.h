@@ -53,6 +53,8 @@ extern "C" {
 #define GLAPI extern
 #endif
 
+#include <GLES2/gl2.h>
+
 /* glcorearb.h is for use with OpenGL core profile implementations.
 ** It should should be placed in the same directory as gl.h and
 ** included as <GL/glcorearb.h>.
@@ -614,8 +616,8 @@ GLAPI void APIENTRY glBlendEquation (GLenum mode);
 #ifndef GL_VERSION_1_5
 #define GL_VERSION_1_5 1
 #include <stddef.h>
-typedef ptrdiff_t GLsizeiptr;
-typedef ptrdiff_t GLintptr;
+//typedef ptrdiff_t GLsizeiptr;
+//typedef ptrdiff_t GLintptr;
 #define GL_BUFFER_SIZE                    0x8764
 #define GL_BUFFER_USAGE                   0x8765
 #define GL_QUERY_COUNTER_BITS             0x8864

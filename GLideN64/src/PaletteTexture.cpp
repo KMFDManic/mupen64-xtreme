@@ -26,7 +26,7 @@ void PaletteTexture::init()
 	const FramebufferTextureFormats & fbTexFormats = gfxContext.getFramebufferTextureFormats();
 
 	m_paletteCRC256 = 0;
-	m_pTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+	m_pTexture = textureCache().addFrameBufferTexture(false);
 	m_pTexture->format = G_IM_FMT_IA;
 	m_pTexture->clampS = 1;
 	m_pTexture->clampT = 1;
@@ -35,14 +35,14 @@ void PaletteTexture::init()
 	m_pTexture->maskT = 0;
 	m_pTexture->mirrorS = 0;
 	m_pTexture->mirrorT = 0;
-	m_pTexture->width = 256;
-	m_pTexture->height = 1;
-	m_pTexture->textureBytes = m_pTexture->width * m_pTexture->height * fbTexFormats.lutFormatBytes;
+	m_pTexture->realWidth = 256;
+	m_pTexture->realHeight = 1;
+	m_pTexture->textureBytes = m_pTexture->realWidth * m_pTexture->realHeight * fbTexFormats.lutFormatBytes;
 
 	Context::InitTextureParams initParams;
 	initParams.handle = m_pTexture->name;
-	initParams.width = m_pTexture->width;
-	initParams.height = m_pTexture->height;
+	initParams.width = m_pTexture->realWidth;
+	initParams.height = m_pTexture->realHeight;
 	initParams.internalFormat = fbTexFormats.lutInternalFormat;
 	initParams.format = fbTexFormats.lutFormat;
 	initParams.dataType = fbTexFormats.lutType;
@@ -72,7 +72,6 @@ void PaletteTexture::destroy()
 	textureCache().removeFrameBufferTexture(m_pTexture);
 	m_pTexture = nullptr;
 	free(m_pbuf);
-	m_pbuf = nullptr;
 }
 
 void PaletteTexture::update()
@@ -94,8 +93,8 @@ void PaletteTexture::update()
 	Context::UpdateTextureDataParams params;
 	params.handle = m_pTexture->name;
 	params.textureUnitIndex = textureIndices::PaletteTex;
-	params.width = m_pTexture->width;
-	params.height = m_pTexture->height;
+	params.width = m_pTexture->realWidth;
+	params.height = m_pTexture->realHeight;
 	params.format = fbTexFormats.lutFormat;
 	params.internalFormat = fbTexFormats.lutInternalFormat;
 	params.dataType = fbTexFormats.lutType;

@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (trans_stream_zlib.c).
@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <zlib.h>
+#include <compat/zlib.h>
 #include <string/stdstring.h>
 #include <streams/trans_stream.h>
 

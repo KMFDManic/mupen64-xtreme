@@ -40,7 +40,6 @@ namespace graphics {
 		extern TextureTargetParam TEXTURE_2D;
 		extern TextureTargetParam TEXTURE_2D_MULTISAMPLE;
 		extern TextureTargetParam RENDERBUFFER;
-		extern TextureTargetParam TEXTURE_EXTERNAL;
 	}
 
 	namespace bufferTarget {

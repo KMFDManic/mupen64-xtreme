@@ -40,7 +40,6 @@ namespace graphics {
 		TextureTargetParam TEXTURE_2D(GL_TEXTURE_2D);
 		TextureTargetParam TEXTURE_2D_MULTISAMPLE(GL_TEXTURE_2D_MULTISAMPLE);
 		TextureTargetParam RENDERBUFFER(GL_RENDERBUFFER);
-		TextureTargetParam TEXTURE_EXTERNAL(GL_TEXTURE_EXTERNAL_OES);
 	}
 
 	namespace bufferTarget {

@@ -31,7 +31,7 @@ void RDRAMtoColorBuffer::init()
 {
 	const FramebufferTextureFormats & fbTexFormats = gfxContext.getFramebufferTextureFormats();
 
-	m_pTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+	m_pTexture = textureCache().addFrameBufferTexture(false);
 	m_pTexture->format = G_IM_FMT_RGBA;
 	m_pTexture->size = 2;
 	m_pTexture->clampS = 1;
@@ -41,17 +41,14 @@ void RDRAMtoColorBuffer::init()
 	m_pTexture->maskT = 0;
 	m_pTexture->mirrorS = 0;
 	m_pTexture->mirrorT = 0;
-	m_pTexture->width = 640;
-	m_pTexture->height = 580;
-	m_pTexture->textureBytes = m_pTexture->width * m_pTexture->height * fbTexFormats.colorFormatBytes;
-
-	m_pTexture->hdRatioS = 1.0f;
-	m_pTexture->hdRatioT = 1.0f;
+	m_pTexture->realWidth = 640;
+	m_pTexture->realHeight = 580;
+	m_pTexture->textureBytes = m_pTexture->realWidth * m_pTexture->realHeight * fbTexFormats.colorFormatBytes;
 
 	Context::InitTextureParams initParams;
 	initParams.handle = m_pTexture->name;
-	initParams.width = m_pTexture->width;
-	initParams.height = m_pTexture->height;
+	initParams.width = m_pTexture->realWidth;
+	initParams.height = m_pTexture->realHeight;
 	initParams.internalFormat = fbTexFormats.colorInternalFormat;
 	initParams.format = fbTexFormats.colorFormat;
 	initParams.dataType = fbTexFormats.colorType;
@@ -75,7 +72,6 @@ void RDRAMtoColorBuffer::destroy()
 		m_pTexture = nullptr;
 	}
 	free(m_pbuf);
-	m_pbuf = nullptr;
 }
 
 void RDRAMtoColorBuffer::addAddress(u32 _address, u32 _size)
@@ -177,7 +173,6 @@ u32 RGBA32ToABGR32(u32 col, bool _fullAlpha)
 void RDRAMtoColorBuffer::_copyFromRDRAM(u32 _height, bool _fullAlpha)
 {
 	Cleaner cleaner(this);
-	ValueKeeper<u32> otherMode(gSP.clipRatio, 1U);
 	const u32 address = m_pCurBuffer->m_startAddress;
 	const u32 width = m_pCurBuffer->m_width;
 	const u32 height = _height;
@@ -189,6 +184,9 @@ void RDRAMtoColorBuffer::_copyFromRDRAM(u32 _height, bool _fullAlpha)
 	const bool bUseAlpha = !_fullAlpha && m_pCurBuffer->m_changed;
 
 	const FramebufferTextureFormats & fbTexFormats = gfxContext.getFramebufferTextureFormats();
+
+	m_pTexture->width = width;
+	m_pTexture->height = height;
 
 	u32 * pDst = nullptr;
 	std::unique_ptr<u8[]> dstData;
@@ -256,8 +254,8 @@ void RDRAMtoColorBuffer::_copyFromRDRAM(u32 _height, bool _fullAlpha)
 	updateParams.data = m_pbuf;
 	gfxContext.update2DTexture(updateParams);
 
-	m_pTexture->scaleS = 1.0f / (float)m_pTexture->width;
-	m_pTexture->scaleT = 1.0f / (float)m_pTexture->height;
+	m_pTexture->scaleS = 1.0f / (float)m_pTexture->realWidth;
+	m_pTexture->scaleT = 1.0f / (float)m_pTexture->realHeight;
 	m_pTexture->shiftScaleS = 1.0f;
 	m_pTexture->shiftScaleT = 1.0f;
 	m_pTexture->offsetS = 0.0f;
@@ -305,6 +303,9 @@ void RDRAMtoColorBuffer::copyFromRDRAM(u32 _address, bool _bCFB)
 	}
 
 	if (m_pCurBuffer == nullptr || m_pCurBuffer->m_size < G_IM_SIZ_16b)
+		return;
+
+	if (m_pCurBuffer->m_startAddress == _address && gDP.colorImage.changed != 0)
 		return;
 
 	const u32 height = cutHeight(m_pCurBuffer->m_startAddress,

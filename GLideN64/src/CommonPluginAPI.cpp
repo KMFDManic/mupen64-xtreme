@@ -13,19 +13,17 @@ extern "C" {
 
 int skip;
 int render;
-EXPORT BOOL CALL gln64InitiateGFX (GFX_INFO Gfx_Info)
+EXPORT BOOL CALL InitiateGFX (GFX_INFO Gfx_Info)
 {
-	skip = 0;
-	render = 1;
 	return api().InitiateGFX(Gfx_Info);
 }
 
-EXPORT void CALL gln64MoveScreen (int xpos, int ypos)
+EXPORT void CALL MoveScreen (int xpos, int ypos)
 {
 	api().MoveScreen(xpos, ypos);
 }
 
-EXPORT void CALL gln64ProcessDList(void)
+EXPORT void CALL ProcessDList(void)
 {
 	if (skip < TurboBoost) {
 		*REG.MI_INTR |= MI_INTR_DP;
@@ -38,22 +36,22 @@ EXPORT void CALL gln64ProcessDList(void)
 	}
 }
 
-EXPORT void CALL gln64ProcessRDPList(void)
+EXPORT void CALL ProcessRDPList(void)
 {
 	api().ProcessRDPList();
 }
 
-EXPORT void CALL gln64RomClosed (void)
+EXPORT void CALL RomClosed (void)
 {
 	api().RomClosed();
 }
 
-EXPORT void CALL gln64ShowCFB (void)
+EXPORT void CALL ShowCFB (void)
 {
 	api().ShowCFB();
 }
 
-EXPORT void CALL gln64UpdateScreen (void)
+EXPORT void CALL UpdateScreen (void)
 {
 	if (render == 1) {
 		api().UpdateScreen();
@@ -61,38 +59,38 @@ EXPORT void CALL gln64UpdateScreen (void)
 	}
 }
 
-EXPORT void CALL gln64ViStatusChanged (void)
+EXPORT void CALL ViStatusChanged (void)
 {
 	api().ViStatusChanged();
 }
 
-EXPORT void CALL gln64ViWidthChanged (void)
+EXPORT void CALL ViWidthChanged (void)
 {
 	api().ViWidthChanged();
 }
 
-EXPORT void CALL gln64ChangeWindow(void)
+EXPORT void CALL ChangeWindow(void)
 {
 	api().ChangeWindow();
 }
 
-EXPORT void CALL gln64FBWrite(unsigned int addr, unsigned int size)
+EXPORT void CALL FBWrite(unsigned int addr, unsigned int size)
 {
 	api().FBWrite(addr, size);
 }
 
-EXPORT void CALL gln64FBRead(unsigned int addr)
+EXPORT void CALL FBRead(unsigned int addr)
 {
 	api().FBRead(addr);
 }
 
-EXPORT void CALL gln64FBGetFrameBufferInfo(void *pinfo)
+EXPORT void CALL FBGetFrameBufferInfo(void *pinfo)
 {
 	api().FBGetFrameBufferInfo(pinfo);
 }
 
 #ifndef MUPENPLUSAPI
-EXPORT void CALL gln64FBWList(FrameBufferModifyEntry *plist, unsigned int size)
+EXPORT void CALL FBWList(FrameBufferModifyEntry *plist, unsigned int size)
 {
 	api().FBWList(plist, size);
 }

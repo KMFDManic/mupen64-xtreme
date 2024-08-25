@@ -1,10 +1,9 @@
 #ifndef TEXTURES_H
 #define TEXTURES_H
 
-#include <array>
-#include <list>
 #include <map>
 #include <unordered_map>
+#include <list>
 
 #include "CRC.h"
 #include "convert.h"
@@ -18,7 +17,7 @@ struct CachedTexture
 	CachedTexture(graphics::ObjectHandle _name) : name(_name), max_level(0), frameBufferTexture(fbNone), bHDTexture(false) {}
 
 	graphics::ObjectHandle name;
-	u64		crc = 0;
+	u32		crc = 0;
 //	float	fulS, fulT;
 //	WORD	ulS, ulT, lrS, lrT;
 	float	offsetS, offsetT;
@@ -32,8 +31,8 @@ struct CachedTexture
 	u32		palette;
 	u16		width, height;			  // N64 width and height
 	u16		clampWidth, clampHeight;  // Size to clamp to
+	u16		realWidth, realHeight;	  // Actual texture size
 	f32		scaleS, scaleT;			  // Scale to map to 0.0-1.0
-	f32     hdRatioS, hdRatioT;       // HD / N64 width and height 
 	f32		shiftScaleS, shiftScaleT; // Scale to shift
 	u32		textureBytes;
 
@@ -54,7 +53,7 @@ struct TextureCache
 
 	void init();
 	void destroy();
-	CachedTexture * addFrameBufferTexture(graphics::Parameter _target);
+	CachedTexture * addFrameBufferTexture(bool _multisample);
 	void removeFrameBufferTexture(CachedTexture * _pTexture);
 	void activateTexture(u32 _t, CachedTexture *_pTexture);
 	void activateDummy(u32 _t);
@@ -79,7 +78,7 @@ private:
 	TextureCache(const TextureCache &) = delete;
 
 	void _checkCacheSize();
-	CachedTexture * _addTexture(u64 _crc64);
+	CachedTexture * _addTexture(u32 _crc32);
 	void _load(u32 _tile, CachedTexture *_pTexture);
 	bool _loadHiresTexture(u32 _tile, CachedTexture *_pTexture, u64 & _ricecrc);
 	void _loadBackground(CachedTexture *pTexture);
@@ -91,7 +90,7 @@ private:
 	void _getTextureDestData(CachedTexture& tmptex, u32* pDest, graphics::Parameter glInternalFormat, GetTexelFunc GetTexel, u16* pLine);
 
 	typedef std::list<CachedTexture> Textures;
-	typedef std::unordered_map<u64, Textures::iterator> Texture_Locations;
+	typedef std::unordered_map<u32, Textures::iterator> Texture_Locations;
 	typedef std::unordered_map<u32, CachedTexture> FBTextures;
 	Textures m_textures;
 	Texture_Locations m_lruTextureLocations;
@@ -104,9 +103,6 @@ private:
 };
 
 void getTextureShiftScale(u32 tile, const TextureCache & cache, f32 & shiftScaleS, f32 & shiftScaleT);
-
-// Check for situation when Tex0 is used instead of Tex1
-bool needReplaceTex1ByTex0();
 
 inline TextureCache & textureCache()
 {

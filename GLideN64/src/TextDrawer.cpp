@@ -79,7 +79,7 @@ struct Atlas {
 		/* Create a texture that will be used to hold all ASCII glyphs */
 		const FramebufferTextureFormats & fbTexFormats = gfxContext.getFramebufferTextureFormats();
 
-		m_pTexture = textureCache().addFrameBufferTexture(textureTarget::TEXTURE_2D);
+		m_pTexture = textureCache().addFrameBufferTexture(false);
 		m_pTexture->format = G_IM_FMT_I;
 		m_pTexture->clampS = 1;
 		m_pTexture->clampT = 1;
@@ -88,9 +88,9 @@ struct Atlas {
 		m_pTexture->maskT = 0;
 		m_pTexture->mirrorS = 0;
 		m_pTexture->mirrorT = 0;
-		m_pTexture->width = w;
-		m_pTexture->height = h;
-		m_pTexture->textureBytes = m_pTexture->width * m_pTexture->height * fbTexFormats.noiseFormatBytes;
+		m_pTexture->realWidth = w;
+		m_pTexture->realHeight = h;
+		m_pTexture->textureBytes = m_pTexture->realWidth * m_pTexture->realHeight * fbTexFormats.noiseFormatBytes;
 
 		Context::InitTextureParams initParams;
 		initParams.handle = m_pTexture->name;

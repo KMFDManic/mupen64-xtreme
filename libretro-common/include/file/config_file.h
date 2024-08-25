@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (config_file.h).
@@ -59,7 +59,6 @@ struct config_file
    struct config_entry_list *last;
    unsigned include_depth;
    bool guaranteed_no_duplicates;
-   bool modified;
 
    struct config_include_list *includes;
 };
@@ -87,18 +86,13 @@ typedef struct config_file_cb config_file_cb_t ;
  * NULL path will create an empty config file. */
 config_file_t *config_file_new(const char *path);
 
-config_file_t *config_file_new_alloc(void);
-
 /* Loads a config file. Returns NULL if file doesn't exist.
  * NULL path will create an empty config file.
  * Includes cb callbacks to run custom code during config file processing.*/
 config_file_t *config_file_new_with_callback(const char *path, config_file_cb_t *cb);
 
 /* Load a config file from a string. */
-config_file_t *config_file_new_from_string(const char *from_string,
-      const char *path);
-
-config_file_t *config_file_new_from_path_to_string(const char *path);
+config_file_t *config_file_new_from_string(const char *from_string);
 
 /* Frees config file. */
 void config_file_free(config_file_t *conf);

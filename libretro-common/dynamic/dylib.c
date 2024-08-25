@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (dylib.c).
@@ -88,13 +88,11 @@ dylib_t dylib_load(const char *path)
 
    char *relative_path = relative_path_abbrev;
    if (relative_path[0] != ':' || !path_char_is_slash(relative_path[1]))
-   {
-      /* Path to dylib_load is not inside app install directory.
-       * Loading will probably fail. */
-   }
+      RARCH_WARN("Path to dylib_load is not inside app install directory! Loading will probably fail\n");
    else
       relative_path += 2;
 
+   RARCH_LOG("Loading library using a relative path: '%s'\n", relative_path);
 
    wchar_t *pathW = utf8_to_utf16_string_alloc(relative_path);
    dylib_t lib = LoadPackagedLibrary(pathW, 0);
@@ -120,7 +118,7 @@ dylib_t dylib_load(const char *path)
    }
    last_dyn_error[0] = 0;
 #else
-   dylib_t lib = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
+   dylib_t lib = dlopen(path, RTLD_LAZY);
 #endif
    return lib;
 }
@@ -149,8 +147,7 @@ function_t dylib_proc(dylib_t lib, const char *proc)
    /* GetModuleHandle is not available on UWP */
    if (!mod)
    {
-      /* It's not possible to lookup symbols in current executable
-       * on UWP. */
+      RARCH_WARN("FIXME: It's not possible to look up symbols in current executable on UWP!\n");
       DebugBreak();
       return NULL;
    }

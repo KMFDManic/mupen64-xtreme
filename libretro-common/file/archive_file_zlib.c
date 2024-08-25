@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (archive_file_zlib.c).
@@ -31,7 +31,7 @@
 #include <encodings/crc32.h>
 
 /* Only for MAX_WBITS */
-#include <zlib.h>
+#include <compat/zlib.h>
 
 #ifndef CENTRAL_FILE_HEADER_SIGNATURE
 #define CENTRAL_FILE_HEADER_SIGNATURE 0x02014b50
@@ -182,9 +182,8 @@ static int zip_file_decompressed(
       uint32_t csize, uint32_t size,
       uint32_t crc32, struct archive_extract_userdata *userdata)
 {
-   char last_char = name[strlen(name) - 1];
    /* Ignore directories. */
-   if (last_char == '/' || last_char == '\\')
+   if (name[strlen(name) - 1] == '/' || name[strlen(name) - 1] == '\\')
       return 1;
 
    if (strstr(name, userdata->decomp_state.needle))

@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (net_http.c).
@@ -32,7 +32,6 @@
 #endif
 #include <compat/strl.h>
 #include <string/stdstring.h>
-#include <string.h>
 #include <retro_common_api.h>
 #include <retro_miscellaneous.h>
 
@@ -84,7 +83,6 @@ struct http_connection_t
    char *methodcopy;
    char *contenttypecopy;
    char *postdatacopy;
-   char* useragentcopy;
    int port;
    struct http_socket_state_t sock_state;
 };
@@ -108,15 +106,15 @@ void urlencode_lut_init(void)
    caller is responsible for deleting the destination buffer */
 void net_http_urlencode(char **dest, const char *source)
 {
-   char *enc    = NULL;
+   char *enc  = NULL;
    /* Assume every character will be encoded, so we need 3 times the space. */
-   size_t len   = strlen(source) * 3 + 1;
+   size_t len = strlen(source) * 3 + 1;
    size_t count = len;
 
    if (!urlencode_lut_inited)
       urlencode_lut_init();
 
-   enc   = (char*)calloc(1, len);
+   enc = (char*)calloc(1, len);
 
    *dest = enc;
 
@@ -143,13 +141,12 @@ void net_http_urlencode(char **dest, const char *source)
 void net_http_urlencode_full(char *dest,
       const char *source, size_t size)
 {
-   size_t buf_pos                    = 0;
    char *tmp                         = NULL;
    char url_domain[PATH_MAX_LENGTH]  = {0};
    char url_path[PATH_MAX_LENGTH]    = {0};
    int count                         = 0;
 
-   strlcpy(url_path, source, sizeof(url_path));
+   strlcpy (url_path, source, sizeof(url_path));
    tmp = url_path;
 
    while (count < 3 && tmp[0] != '\0')
@@ -166,12 +163,9 @@ void net_http_urlencode_full(char *dest,
          strlen(tmp) + 1
          );
 
-   tmp            = NULL;
+   tmp = NULL;
    net_http_urlencode(&tmp, url_path);
-   buf_pos         = strlcpy(dest, url_domain, size);
-   dest[buf_pos]   = '/';
-   dest[buf_pos+1] = '\0';
-   strlcat(dest, tmp, size);
+   snprintf(dest, size, "%s/%s", url_domain, tmp);
    free (tmp);
 }
 
@@ -190,14 +184,12 @@ static int net_http_new_socket(struct http_connection_t *conn)
 #endif
 
    next_addr = addr;
-
-   while (fd >= 0)
+   while(fd >= 0)
    {
 #ifdef HAVE_SSL
       if (conn->sock_state.ssl)
       {
-         ret = ssl_socket_connect(conn->sock_state.ssl_ctx,
-               (void*)next_addr, true, true);
+         ret = ssl_socket_connect(conn->sock_state.ssl_ctx, (void*)next_addr, true, true);
 
          if (ret >= 0)
             break;
@@ -226,25 +218,20 @@ static int net_http_new_socket(struct http_connection_t *conn)
    return fd;
 }
 
-static void net_http_send_str(
-      struct http_socket_state_t *sock_state, bool *error, const char *text)
+static void net_http_send_str(struct http_socket_state_t *sock_state, bool *error, const char *text)
 {
-   size_t text_size;
    if (*error)
       return;
-   text_size = strlen(text);
 #ifdef HAVE_SSL
    if (sock_state->ssl)
    {
-      if (!ssl_socket_send_all_blocking(
-               sock_state->ssl_ctx, text, text_size, true))
+      if (!ssl_socket_send_all_blocking(sock_state->ssl_ctx, text, strlen(text), true))
          *error = true;
    }
    else
 #endif
    {
-      if (!socket_send_all_blocking(
-               sock_state->fd, text, text_size, true))
+      if (!socket_send_all_blocking(sock_state->fd, text, strlen(text), true))
          *error = true;
    }
 }
@@ -252,42 +239,43 @@ static void net_http_send_str(
 struct http_connection_t *net_http_connection_new(const char *url,
       const char *method, const char *data)
 {
+   char **domain = NULL;
    struct http_connection_t *conn = (struct http_connection_t*)calloc(1,
          sizeof(*conn));
+   bool error = false;
 
    if (!conn)
       return NULL;
 
    if (!url)
-   {
-      free(conn);
-      return NULL;
-   }
+      goto error;
+
+   conn->urlcopy         = strdup(url);
 
    if (method)
-      conn->methodcopy     = strdup(method);
+      conn->methodcopy   = strdup(method);
 
    if (data)
-      conn->postdatacopy   = strdup(data);
+      conn->postdatacopy = strdup(data);
 
-   conn->urlcopy           = strdup(url);
    if (!conn->urlcopy)
       goto error;
 
-   if (!strncmp(url, "http://", STRLEN_CONST("http://")))
-      conn->scan           = conn->urlcopy + STRLEN_CONST("http://");
-   else if (!strncmp(url, "https://", STRLEN_CONST("https://")))
+   if (!strncmp(url, "http://", strlen("http://")))
+      conn->scan    = conn->urlcopy + strlen("http://");
+   else if (!strncmp(url, "https://", strlen("https://")))
    {
-      conn->scan           = conn->urlcopy + STRLEN_CONST("https://");
+      conn->scan    = conn->urlcopy + strlen("https://");
       conn->sock_state.ssl = true;
    }
    else
+      error = true;
+
+   if (error)
       goto error;
 
-   if (string_is_empty(conn->scan))
-      goto error;
-
-   conn->domain = conn->scan;
+   domain        = &conn->domain;
+   *domain       = conn->scan;
 
    return conn;
 
@@ -318,80 +306,37 @@ bool net_http_connection_iterate(struct http_connection_t *conn)
 
 bool net_http_connection_done(struct http_connection_t *conn)
 {
-   int has_port = 0;
+   char **location = NULL;
 
    if (!conn)
       return false;
 
-   if (!conn->domain || !*conn->domain)
+   location     = &conn->location;
+
+   if (*conn->scan == '\0')
       return false;
+
+   *conn->scan  = '\0';
+
+   if (conn->sock_state.ssl)
+      conn->port   = 443;
+   else
+      conn->port   = 80;
 
    if (*conn->scan == ':')
    {
-      /* domain followed by port, split off the port */
-      *conn->scan++ = '\0';
-
-      if (!isdigit((int)(*conn->scan)))
+      if (!isdigit((int)conn->scan[1]))
          return false;
 
-      conn->port = (int)strtoul(conn->scan, &conn->scan, 10);
-      has_port = 1;
-   }
-   else if (conn->port == 0)
-   {
-      /* port not specified, default to standard HTTP or HTTPS port */
-      if (conn->sock_state.ssl)
-         conn->port = 443;
-      else
-         conn->port = 80;
+      conn->port = (int)strtoul(conn->scan + 1, &conn->scan, 10);
+
+      if (*conn->scan != '/')
+         return false;
    }
 
-   if (*conn->scan == '/')
-   {
-      /* domain followed by location - split off the location */
-      /*   site.com/path.html   or   site.com:80/path.html   */
-      *conn->scan = '\0';
-      conn->location = conn->scan + 1;
-      return true;
-   }
-   else if (!*conn->scan)
-   {
-      /* domain with no location - point location at empty string */
-      /*   site.com   or   site.com:80   */
-      conn->location = conn->scan;
-      return true;
-   }
-   else if (*conn->scan == '?')
-   {
-      /* domain with no location, but still has query parms - point location at the query parms */
-      /*   site.com?param=3   or  site.com:80?param=3   */
-      if (!has_port)
-      {
-         /* if there wasn't a port, we have to expand the urlcopy so we can separate the two parts */
-         size_t domain_len = strlen(conn->domain);
-         size_t location_len = strlen(conn->scan);
-         char* urlcopy = (char*)malloc(domain_len + location_len + 2);
-         memcpy(urlcopy, conn->domain, domain_len);
-         urlcopy[domain_len] = '\0';
-         memcpy(urlcopy + domain_len + 1, conn->scan, location_len + 1);
+   *location = conn->scan + 1;
 
-         free(conn->urlcopy);
-         conn->domain = conn->urlcopy = urlcopy;
-         conn->location = conn->scan = urlcopy + domain_len + 1;
-      }
-      else
-      {
-         /* there was a port, so overwriting the : will terminate the domain and we can just point at the ? */
-         conn->location = conn->scan;
-      }
-
-      return true;
-   }
-   else
-   {
-      /* invalid character after domain/port */
-      return false;
-   }
+   return true;
 }
 
 void net_http_connection_free(struct http_connection_t *conn)
@@ -411,24 +356,12 @@ void net_http_connection_free(struct http_connection_t *conn)
    if (conn->postdatacopy)
       free(conn->postdatacopy);
 
-   if (conn->useragentcopy)
-      free(conn->useragentcopy);
-
-   conn->urlcopy         = NULL;
-   conn->methodcopy      = NULL;
+   conn->urlcopy = NULL;
+   conn->methodcopy = NULL;
    conn->contenttypecopy = NULL;
-   conn->postdatacopy    = NULL;
-   conn->useragentcopy   = NULL;
+   conn->postdatacopy = NULL;
 
    free(conn);
-}
-
-void net_http_connection_set_user_agent(struct http_connection_t* conn, const char* user_agent)
-{
-   if (conn->useragentcopy)
-      free(conn->useragentcopy);
-
-   conn->useragentcopy = user_agent ? strdup(user_agent) : NULL;
 }
 
 const char *net_http_connection_url(struct http_connection_t *conn)
@@ -481,7 +414,7 @@ struct http_t *net_http_new(struct http_connection_t *conn)
 
    net_http_send_str(&conn->sock_state, &error, "\r\n");
 
-   /* This is not being set anywhere yet */
+   /* this is not being set anywhere yet */
    if (conn->contenttypecopy)
    {
       net_http_send_str(&conn->sock_state, &error, "Content-Type: ");
@@ -505,11 +438,11 @@ struct http_t *net_http_new(struct http_connection_t *conn)
 
       post_len = strlen(conn->postdatacopy);
 #ifdef _WIN32
-      len     = snprintf(NULL, 0, "%" PRIuPTR, post_len);
+      len = snprintf(NULL, 0, "%" PRIuPTR, post_len);
       len_str = (char*)malloc(len + 1);
       snprintf(len_str, len + 1, "%" PRIuPTR, post_len);
 #else
-      len     = snprintf(NULL, 0, "%llu", (long long unsigned)post_len);
+      len = snprintf(NULL, 0, "%llu", (long long unsigned)post_len);
       len_str = (char*)malloc(len + 1);
       snprintf(len_str, len + 1, "%llu", (long long unsigned)post_len);
 #endif
@@ -522,13 +455,7 @@ struct http_t *net_http_new(struct http_connection_t *conn)
       free(len_str);
    }
 
-   net_http_send_str(&conn->sock_state, &error, "User-Agent: ");
-   if (conn->useragentcopy)
-      net_http_send_str(&conn->sock_state, &error, conn->useragentcopy);
-   else
-      net_http_send_str(&conn->sock_state, &error, "libretro");
-   net_http_send_str(&conn->sock_state, &error, "\r\n");
-
+   net_http_send_str(&conn->sock_state, &error, "User-Agent: libretro\r\n");
    net_http_send_str(&conn->sock_state, &error, "Connection: close\r\n");
    net_http_send_str(&conn->sock_state, &error, "\r\n");
 
@@ -538,17 +465,17 @@ struct http_t *net_http_new(struct http_connection_t *conn)
    if (error)
       goto error;
 
-   state             = (struct http_t*)malloc(sizeof(struct http_t));
+   state          = (struct http_t*)malloc(sizeof(struct http_t));
    state->sock_state = conn->sock_state;
-   state->status     = -1;
-   state->data       = NULL;
-   state->part       = P_HEADER_TOP;
-   state->bodytype   = T_FULL;
-   state->error      = false;
-   state->pos        = 0;
-   state->len        = 0;
-   state->buflen     = 512;
-   state->data       = (char*)malloc(state->buflen);
+   state->status  = -1;
+   state->data    = NULL;
+   state->part    = P_HEADER_TOP;
+   state->bodytype= T_FULL;
+   state->error   = false;
+   state->pos     = 0;
+   state->len     = 0;
+   state->buflen  = 512;
+   state->data    = (char*)malloc(state->buflen);
 
    if (!state->data)
       goto error;
@@ -556,18 +483,15 @@ struct http_t *net_http_new(struct http_connection_t *conn)
    return state;
 
 error:
-   if (conn)
-   {
-      if (conn->methodcopy)
-         free(conn->methodcopy);
-      if (conn->contenttypecopy)
-         free(conn->contenttypecopy);
-      conn->methodcopy = NULL;
-      conn->contenttypecopy = NULL;
-      conn->postdatacopy = NULL;
-   }
+   if (conn->methodcopy)
+      free(conn->methodcopy);
+   if (conn->contenttypecopy)
+      free(conn->contenttypecopy);
+   conn->methodcopy = NULL;
+   conn->contenttypecopy = NULL;
+   conn->postdatacopy = NULL;
 #ifdef HAVE_SSL
-   if (conn && conn->sock_state.ssl && conn->sock_state.ssl_ctx && fd >= 0)
+   if (conn->sock_state.ssl && conn->sock_state.ssl_ctx && fd >= 0)
    {
       ssl_socket_close(conn->sock_state.ssl_ctx);
       ssl_socket_free(conn->sock_state.ssl_ctx);
@@ -639,20 +563,19 @@ bool net_http_update(struct http_t *state, size_t* progress, size_t* total)
 
          if (state->part == P_HEADER_TOP)
          {
-            if (strncmp(state->data, "HTTP/1.", STRLEN_CONST("HTTP/1."))!=0)
+            if (strncmp(state->data, "HTTP/1.", strlen("HTTP/1."))!=0)
                goto fail;
-            state->status = (int)strtoul(state->data 
-                  + STRLEN_CONST("HTTP/1.1 "), NULL, 10);
+            state->status = (int)strtoul(state->data + strlen("HTTP/1.1 "), NULL, 10);
             state->part   = P_HEADER;
          }
          else
          {
             if (!strncmp(state->data, "Content-Length: ",
-                     STRLEN_CONST("Content-Length: ")))
+                     strlen("Content-Length: ")))
             {
                state->bodytype = T_LEN;
                state->len = strtol(state->data +
-                     STRLEN_CONST("Content-Length: "), NULL, 10);
+                     strlen("Content-Length: "), NULL, 10);
             }
             if (string_is_equal(state->data, "Transfer-Encoding: chunked"))
                state->bodytype = T_CHUNK;

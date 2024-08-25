@@ -67,13 +67,7 @@ bool Config_SetDefault()
 	res = ConfigSetDefaultInt(g_configVideoGliden64, "MaxAnisotropy", config.texture.maxAnisotropy, "Max level of Anisotropic Filtering, 0 for off");
 	assert(res == M64ERR_SUCCESS);
 	//#Emulation Settings
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableDitheringPattern", config.generalEmulation.enableDitheringPattern, "Enable dithering pattern on output image.");
-	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableHiresNoiseDithering", config.generalEmulation.enableHiresNoiseDithering, "Enable hi-res noise dithering.");
-	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "DitheringQuantization", config.generalEmulation.enableDitheringQuantization, "Dither with color quantization.");
-	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultInt(g_configVideoGliden64, "RDRAMImageDitheringMode", config.generalEmulation.rdramImageDitheringMode, "Dithering mode for image in RDRAM. (0=disable, 1=bayer, 2=magic square, 3=blue noise)");
+	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableNoise", config.generalEmulation.enableNoise, "Enable color noise emulation.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableLOD", config.generalEmulation.enableLOD, "Enable LOD emulation.");
 	assert(res == M64ERR_SUCCESS);
@@ -82,8 +76,6 @@ bool Config_SetDefault()
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableShadersStorage", config.generalEmulation.enableShadersStorage, "Use persistent storage for compiled shaders.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableLegacyBlending", config.generalEmulation.enableLegacyBlending, "Do not use shaders to emulate N64 blending modes. Works faster on slow GPU. Can cause glitches.");
-	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableHybridFilter", config.generalEmulation.enableHybridFilter, "Enable hybrid integer scaling filter, this can be slow with low-end GPUs");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableFragmentDepthWrite", config.generalEmulation.enableFragmentDepthWrite, "Enable writing of fragment depth. Some mobile GPUs do not support it, thus it made optional. Leave enabled.");
 	assert(res == M64ERR_SUCCESS);
@@ -102,7 +94,7 @@ bool Config_SetDefault()
 	//#2D graphics Settings
 	res = ConfigSetDefaultInt(g_configVideoGliden64, "CorrectTexrectCoords", config.graphics2D.correctTexrectCoords, "Make texrect coordinates continuous to avoid black lines between them. (0=Off, 1=Auto, 2=Force)");
 	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultInt(g_configVideoGliden64, "EnableNativeResTexrects", config.graphics2D.enableNativeResTexrects, "Render 2D texrects in native resolution to fix misalignment between parts of 2D image. (0=Off, 1=Optimized, 2=Unoptimized)");
+	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableNativeResTexrects", config.graphics2D.enableNativeResTexrects, "Render 2D texrects in native resolution to fix misalignment between parts of 2D image.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultInt(g_configVideoGliden64, "BackgroundsMode", config.graphics2D.bgMode, "Render backgrounds mode (HLE only). (0=One piece (fast), 1=Stripped (precise))");
 	assert(res == M64ERR_SUCCESS);
@@ -112,7 +104,7 @@ bool Config_SetDefault()
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableCopyAuxiliaryToRDRAM", config.frameBufferEmulation.copyAuxToRDRAM, "Copy auxiliary buffers to RDRAM");
 	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultInt(g_configVideoGliden64, "EnableN64DepthCompare", config.frameBufferEmulation.N64DepthCompare, "Enable N64 depth compare instead of OpenGL standard one. Experimental. (0=Off, 1=Fast, 2=Compatible)");
+	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableN64DepthCompare", config.frameBufferEmulation.N64DepthCompare, "Enable N64 depth compare instead of OpenGL standard one. Experimental.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "ForceDepthBufferClear", config.frameBufferEmulation.forceDepthBufferClear, "Force depth buffer clear. Hack. Needed for Eikou no Saint Andrews.");
 	assert(res == M64ERR_SUCCESS);
@@ -128,10 +120,6 @@ bool Config_SetDefault()
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableCopyColorFromRDRAM", config.frameBufferEmulation.copyFromRDRAM, "Enable color buffer copy from RDRAM.");
 	assert(res == M64ERR_SUCCESS);
-#if defined(OS_WINDOWS)
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableCopyDepthToMainDepthBuffer", config.frameBufferEmulation.copyDepthToMainDepthBuffer, "Enable copy of depth information from FBO to main depth buffer. Required for some Reshade shaders.");
-	assert(res == M64ERR_SUCCESS);
-#endif
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "EnableOverscan", config.frameBufferEmulation.enableOverscan, "Enable resulted image crop by Overscan.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultInt(g_configVideoGliden64, "OverscanPalLeft", config.frameBufferEmulation.overscanPAL.left, "PAL mode. Left bound of Overscan");
@@ -159,7 +147,7 @@ bool Config_SetDefault()
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "txFilterIgnoreBG", config.textureFilter.txFilterIgnoreBG, "Don't filter background textures.");
 	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultInt(g_configVideoGliden64, "txCacheSize", config.textureFilter.txCacheSize/ gc_uMegabyte, "Size of memory cache for enhanced textures in megabytes.");
+	res = ConfigSetDefaultInt(g_configVideoGliden64, "txCacheSize", config.textureFilter.txCacheSize/ gc_uMegabyte, "Size of filtered textures cache in megabytes.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "txHiresEnable", config.textureFilter.txHiresEnable, "Use high-resolution texture packs if available.");
 	assert(res == M64ERR_SUCCESS);
@@ -174,10 +162,6 @@ bool Config_SetDefault()
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "txForce16bpp", config.textureFilter.txForce16bpp, "Force use 16bit texture formats for HD textures.");
 	assert(res == M64ERR_SUCCESS);
 	res = ConfigSetDefaultBool(g_configVideoGliden64, "txSaveCache", config.textureFilter.txSaveCache, "Save texture cache to hard disk.");
-	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "txEnhancedTextureFileStorage", config.textureFilter.txEnhancedTextureFileStorage, "Use file storage instead of memory cache for enhanced textures.");
-	assert(res == M64ERR_SUCCESS);
-	res = ConfigSetDefaultBool(g_configVideoGliden64, "txHiresTextureFileStorage", config.textureFilter.txHiresTextureFileStorage, "Use file storage instead of memory cache for HD textures.");
 	assert(res == M64ERR_SUCCESS);
 	// Convert to multibyte
 	char txPath[PLUGIN_PATH_SIZE * 2];
@@ -276,14 +260,8 @@ void Config_LoadCustomConfig()
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "texture\\screenShotFormat", value, sizeof(value));
 	if (result == M64ERR_SUCCESS) config.texture.screenShotFormat = atoi(value);
 
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\enableDitheringPattern", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.generalEmulation.enableDitheringPattern = atoi(value);
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\enableHiresNoiseDithering", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.generalEmulation.enableHiresNoiseDithering = atoi(value);
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\enableDitheringQuantization", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.generalEmulation.enableDitheringQuantization = atoi(value);
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\rdramImageDitheringMode", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.generalEmulation.rdramImageDitheringMode = atoi(value);
+	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\enableNoise", value, sizeof(value));
+	if (result == M64ERR_SUCCESS) config.generalEmulation.enableNoise = atoi(value);
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\enableLOD", value, sizeof(value));
 	if (result == M64ERR_SUCCESS) config.generalEmulation.enableLOD = atoi(value);
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "generalEmulation\\enableHWLighting", value, sizeof(value));
@@ -328,10 +306,6 @@ void Config_LoadCustomConfig()
 	if (result == M64ERR_SUCCESS) config.frameBufferEmulation.fbInfoReadColorChunk = atoi(value);
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "frameBufferEmulation\\fbInfoReadDepthChunk", value, sizeof(value));
 	if (result == M64ERR_SUCCESS) config.frameBufferEmulation.fbInfoReadDepthChunk = atoi(value);
-#if defined(OS_WINDOWS)
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "frameBufferEmulation\\EnableCopyDepthToMainDepthBuffer", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.frameBufferEmulation.copyDepthToMainDepthBuffer = atoi(value);
-#endif
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "frameBufferEmulation\\EnableOverscan", value, sizeof(value));
 	if (result == M64ERR_SUCCESS) config.frameBufferEmulation.enableOverscan = atoi(value);
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "frameBufferEmulation\\OverscanPalLeft", value, sizeof(value));
@@ -375,10 +349,6 @@ void Config_LoadCustomConfig()
 	if (result == M64ERR_SUCCESS) config.textureFilter.txCacheCompression = atoi(value);
 	result = ConfigExternalGetParameter(fileHandle, sectionName, "textureFilter\\txSaveCache", value, sizeof(value));
 	if (result == M64ERR_SUCCESS) config.textureFilter.txSaveCache = atoi(value);
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "textureFilter\\txEnhancedTextureFileStorage", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.textureFilter.txEnhancedTextureFileStorage = atoi(value);
-	result = ConfigExternalGetParameter(fileHandle, sectionName, "textureFilter\\txHiresTextureFileStorage", value, sizeof(value));
-	if (result == M64ERR_SUCCESS) config.textureFilter.txHiresTextureFileStorage = atoi(value);
 	ConfigExternalClose(fileHandle);
 }
 
@@ -406,16 +376,11 @@ void Config_LoadConfig()
 	config.texture.maxAnisotropy = ConfigGetParamInt(g_configVideoGliden64, "MaxAnisotropy");
 	config.texture.enableHalosRemoval = ConfigGetParamBool(g_configVideoGliden64, "enableHalosRemoval");
 	//#Emulation Settings
-	config.generalEmulation.enableDitheringPattern = ConfigGetParamBool(g_configVideoGliden64, "EnableDitheringPattern");
-	config.generalEmulation.enableHiresNoiseDithering = ConfigGetParamBool(g_configVideoGliden64, "EnableHiresNoiseDithering");
-	config.generalEmulation.enableDitheringQuantization = ConfigGetParamBool(g_configVideoGliden64, "DitheringQuantization");
-	config.generalEmulation.rdramImageDitheringMode = ConfigGetParamInt(g_configVideoGliden64, "RDRAMImageDitheringMode");
-
+	config.generalEmulation.enableNoise = ConfigGetParamBool(g_configVideoGliden64, "EnableNoise");
 	config.generalEmulation.enableLOD = ConfigGetParamBool(g_configVideoGliden64, "EnableLOD");
 	config.generalEmulation.enableHWLighting = ConfigGetParamBool(g_configVideoGliden64, "EnableHWLighting");
 	config.generalEmulation.enableShadersStorage = ConfigGetParamBool(g_configVideoGliden64, "EnableShadersStorage");
 	config.generalEmulation.enableLegacyBlending = ConfigGetParamBool(g_configVideoGliden64, "EnableLegacyBlending");
-	config.generalEmulation.enableHybridFilter = ConfigGetParamBool(g_configVideoGliden64, "EnableHybridFilter");
 	config.generalEmulation.enableFragmentDepthWrite = ConfigGetParamBool(g_configVideoGliden64, "EnableFragmentDepthWrite");
 	config.generalEmulation.enableCustomSettings = ConfigGetParamBool(g_configVideoGliden64, "EnableCustomSettings");
 #if defined(OS_ANDROID) || defined(OS_IOS)
@@ -426,7 +391,7 @@ void Config_LoadConfig()
 #endif
 	//#2D graphics Settings
 	config.graphics2D.correctTexrectCoords = ConfigGetParamInt(g_configVideoGliden64, "CorrectTexrectCoords");
-	config.graphics2D.enableNativeResTexrects = ConfigGetParamInt(g_configVideoGliden64, "EnableNativeResTexrects");
+	config.graphics2D.enableNativeResTexrects = ConfigGetParamBool(g_configVideoGliden64, "EnableNativeResTexrects");
 	config.graphics2D.bgMode = ConfigGetParamInt(g_configVideoGliden64, "BackgroundsMode");
 	//#Frame Buffer Settings:"
 	config.frameBufferEmulation.enable = ConfigGetParamBool(g_configVideoGliden64, "EnableFBEmulation");
@@ -434,14 +399,11 @@ void Config_LoadConfig()
 	config.frameBufferEmulation.copyToRDRAM = ConfigGetParamInt(g_configVideoGliden64, "EnableCopyColorToRDRAM");
 	config.frameBufferEmulation.copyDepthToRDRAM = ConfigGetParamInt(g_configVideoGliden64, "EnableCopyDepthToRDRAM");
 	config.frameBufferEmulation.copyFromRDRAM = ConfigGetParamBool(g_configVideoGliden64, "EnableCopyColorFromRDRAM");
-	config.frameBufferEmulation.N64DepthCompare = ConfigGetParamInt(g_configVideoGliden64, "EnableN64DepthCompare");
+	config.frameBufferEmulation.N64DepthCompare = ConfigGetParamBool(g_configVideoGliden64, "EnableN64DepthCompare");
 	config.frameBufferEmulation.forceDepthBufferClear = ConfigGetParamBool(g_configVideoGliden64, "ForceDepthBufferClear");
 	config.frameBufferEmulation.fbInfoDisabled = ConfigGetParamBool(g_configVideoGliden64, "DisableFBInfo");
 	config.frameBufferEmulation.fbInfoReadColorChunk = ConfigGetParamBool(g_configVideoGliden64, "FBInfoReadColorChunk");
 	config.frameBufferEmulation.fbInfoReadDepthChunk = ConfigGetParamBool(g_configVideoGliden64, "FBInfoReadDepthChunk");
-#if defined(OS_WINDOWS)
-	config.frameBufferEmulation.copyDepthToMainDepthBuffer = ConfigGetParamBool(g_configVideoGliden64, "EnableCopyDepthToMainDepthBuffer");
-#endif
 	config.frameBufferEmulation.enableOverscan = ConfigGetParamBool(g_configVideoGliden64, "EnableOverscan");
 	config.frameBufferEmulation.overscanPAL.left = ConfigGetParamInt(g_configVideoGliden64, "OverscanPalLeft");
 	config.frameBufferEmulation.overscanPAL.right = ConfigGetParamInt(g_configVideoGliden64, "OverscanPalRight");
@@ -464,8 +426,6 @@ void Config_LoadConfig()
 	config.textureFilter.txForce16bpp = ConfigGetParamBool(g_configVideoGliden64, "txForce16bpp");
 	config.textureFilter.txCacheCompression = ConfigGetParamBool(g_configVideoGliden64, "txCacheCompression");
 	config.textureFilter.txSaveCache = ConfigGetParamBool(g_configVideoGliden64, "txSaveCache");
-	config.textureFilter.txEnhancedTextureFileStorage = ConfigGetParamBool(g_configVideoGliden64, "txEnhancedTextureFileStorage");
-	config.textureFilter.txHiresTextureFileStorage = ConfigGetParamBool(g_configVideoGliden64, "txHiresTextureFileStorage");
 	::mbstowcs(config.textureFilter.txPath, ConfigGetParamString(g_configVideoGliden64, "txPath"), PLUGIN_PATH_SIZE);
 	::mbstowcs(config.textureFilter.txCachePath, ConfigGetParamString(g_configVideoGliden64, "txCachePath"), PLUGIN_PATH_SIZE);
 	::mbstowcs(config.textureFilter.txDumpPath, ConfigGetParamString(g_configVideoGliden64, "txDumpPath"), PLUGIN_PATH_SIZE);

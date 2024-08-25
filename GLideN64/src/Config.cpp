@@ -33,15 +33,11 @@ void Config::resetToDefaults()
 	texture.screenShotFormat = 0;
 
 	generalEmulation.enableLOD = 1;
-	generalEmulation.enableHiresNoiseDithering = 0;
-	generalEmulation.enableDitheringPattern = 0;
-	generalEmulation.enableDitheringQuantization = 1;
-	generalEmulation.rdramImageDitheringMode = BufferDitheringMode::bdmBlueNoise;
+	generalEmulation.enableNoise = 1;
 	generalEmulation.enableHWLighting = 0;
 	generalEmulation.enableCustomSettings = 1;
 	generalEmulation.enableShadersStorage = 1;
 	generalEmulation.enableLegacyBlending = 0;
-	generalEmulation.enableHybridFilter = 1;
 	generalEmulation.hacks = 0;
 #if defined(OS_ANDROID) || defined(OS_IOS)
 	generalEmulation.enableFragmentDepthWrite = 0;
@@ -54,7 +50,7 @@ void Config::resetToDefaults()
 #endif
 
 	graphics2D.correctTexrectCoords = tcDisable;
-	graphics2D.enableNativeResTexrects = NativeResTexrectsMode::ntDisable;
+	graphics2D.enableNativeResTexrects = 0;
 	graphics2D.bgMode = BGMode::bgOnePiece;
 
 	frameBufferEmulation.enable = 1;
@@ -62,14 +58,13 @@ void Config::resetToDefaults()
 	frameBufferEmulation.copyFromRDRAM = 0;
 	frameBufferEmulation.copyAuxToRDRAM = 0;
 	frameBufferEmulation.copyToRDRAM = ctDoubleBuffer;
-	frameBufferEmulation.N64DepthCompare = dcDisable;
+	frameBufferEmulation.N64DepthCompare = 0;
 	frameBufferEmulation.forceDepthBufferClear = 0;
 	frameBufferEmulation.aspect = a43;
 	frameBufferEmulation.bufferSwapMode = bsOnVerticalInterrupt;
 	frameBufferEmulation.nativeResFactor = 0;
 	frameBufferEmulation.fbInfoReadColorChunk = 0;
 	frameBufferEmulation.fbInfoReadDepthChunk = 1;
-	frameBufferEmulation.copyDepthToMainDepthBuffer = 0;
 #ifndef MUPENPLUSAPI
 	frameBufferEmulation.fbInfoDisabled = 0;
 #else
@@ -91,9 +86,6 @@ void Config::resetToDefaults()
 	textureFilter.txForce16bpp = 0;
 	textureFilter.txCacheCompression = 1;
 	textureFilter.txSaveCache = 1;
-
-	textureFilter.txEnhancedTextureFileStorage = 0;
-	textureFilter.txHiresTextureFileStorage = 0;
 
 	api().GetUserDataPath(textureFilter.txPath);
 	gln_wcscat(textureFilter.txPath, wst("/hires_texture"));
@@ -139,7 +131,7 @@ bool isHWLightingAllowed()
 
 void Config::validate()
 {
-	if (frameBufferEmulation.enable != 0 && frameBufferEmulation.N64DepthCompare != dcDisable)
+	if (frameBufferEmulation.enable != 0 && frameBufferEmulation.N64DepthCompare != 0)
 		video.multisampling = 0;
 	if (frameBufferEmulation.nativeResFactor == 1) {
 		graphics2D.enableNativeResTexrects = 0;

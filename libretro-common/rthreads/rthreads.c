@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2020 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (rthreads.c).
@@ -48,6 +48,8 @@
 #endif
 #elif defined(GEKKO)
 #include "gx_pthread.h"
+#elif defined(HAVE_LIBNX)
+#include "switch_pthread.h"
 #elif defined(_3DS)
 #include "ctr_pthread.h"
 #elif defined(__CELLOS_LV2__)
@@ -268,9 +270,7 @@ int sthread_detach(sthread_t *thread)
    free(thread);
    return 0;
 #else
-   int ret = pthread_detach(thread->id);
-   free(thread);
-   return ret;
+   return pthread_detach(thread->id);
 #endif
 }
 
@@ -388,24 +388,6 @@ void slock_lock(slock_t *lock)
 }
 
 /**
- * slock_try_lock:
- * @lock                    : pointer to mutex object
- *
- * Attempts to lock a mutex. If a mutex is already locked by
- * another thread, return false.  If the lock is acquired, return true.
-**/
-bool slock_try_lock(slock_t *lock)
-{
-   if (!lock)
-      return false;
-#ifdef USE_WIN32_THREADS
-   return TryEnterCriticalSection(&lock->lock);
-#else
-   return pthread_mutex_trylock(&lock->lock)==0;
-#endif
-}
-
-/**
  * slock_unlock:
  * @lock                    : pointer to mutex object
  *
@@ -466,8 +448,7 @@ scond_t *scond_new(void)
     * Note: We might could simplify this using vista+ condition variables,
     * but we wanted an XP compatible solution. */
    cond->event = CreateEvent(NULL, FALSE, FALSE, NULL);
-   if (!cond->event)
-      goto error;
+   if (!cond->event) goto error;
    cond->hot_potato = CreateEvent(NULL, FALSE, FALSE, NULL);
    if (!cond->hot_potato)
    {
@@ -872,7 +853,7 @@ bool scond_wait_timeout(scond_t *cond, slock_t *lock, int64_t timeout_us)
    now.tv_sec  = s;
    now.tv_nsec = n;
 #elif defined(PS2)
-   int tickms = ps2_clock();
+   int tickms = clock();
    now.tv_sec = tickms/1000;
    now.tv_nsec = tickms * 1000;
 #elif defined(__mips__) || defined(VITA) || defined(_3DS)
@@ -942,19 +923,3 @@ bool sthread_tls_set(sthread_tls_t *tls, const void *data)
 #endif
 }
 #endif
-
-uintptr_t sthread_get_thread_id(sthread_t *thread)
-{
-   if (!thread)
-      return 0;
-   return (uintptr_t)thread->id;
-}
-
-uintptr_t sthread_get_current_thread_id(void)
-{
-#ifdef USE_WIN32_THREADS
-   return (uintptr_t)GetCurrentThreadId();
-#else
-   return (uintptr_t)pthread_self();
-#endif
-}

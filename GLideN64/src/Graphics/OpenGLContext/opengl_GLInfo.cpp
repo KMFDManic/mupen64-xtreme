@@ -13,22 +13,10 @@
 
 using namespace opengl;
 
-static
-void APIENTRY on_gl_error(GLenum source,
-						GLenum type,
-						GLuint id,
-						GLenum severity,
-						GLsizei length,
-						const char* message,
-						const void *userParam)
-{
-	LOG(LOG_ERROR, "%s", message);
-}
-
 void GLInfo::init() {
-	const char * strDriverVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
-	isGLESX = strstr(strDriverVersion, "OpenGL ES") != nullptr;
-	isGLES2 = strstr(strDriverVersion, "OpenGL ES 2") != nullptr;
+	const char * strVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+	isGLESX = strstr(strVersion, "OpenGL ES") != nullptr;
+	isGLES2 = strstr(strVersion, "OpenGL ES 2") != nullptr;
 	if (isGLES2) {
 		majorVersion = 2;
 		minorVersion = 0;
@@ -48,22 +36,23 @@ void GLInfo::init() {
 
 
 	LOG(LOG_VERBOSE, "OpenGL vendor: %s", glGetString(GL_VENDOR));
-	const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+	const GLubyte * strRenderer = glGetString(GL_RENDERER);
+	const GLubyte * strDriverVersion = glGetString(GL_VERSION);
 
-	if (std::regex_match(std::string(strRenderer), std::regex("Adreno.*530")))
+	if (std::regex_match(std::string((const char*)strRenderer), std::regex("Adreno.*530")))
 		renderer = Renderer::Adreno530;
-	else if (std::regex_match(std::string(strRenderer), std::regex("Adreno.*540")) ||
-		std::regex_match(std::string(strRenderer), std::regex("Adreno.*6\\d\\d")))
+	else if (std::regex_match(std::string((const char*)strRenderer), std::regex("Adreno.*540")) ||
+		std::regex_match(std::string((const char*)strRenderer), std::regex("Adreno.*6\\d\\d")))
 		renderer = Renderer::Adreno_no_bugs;
-	else if (strstr(strRenderer, "Adreno") != nullptr)
+	else if (strstr((const char*)strRenderer, "Adreno") != nullptr)
 		renderer = Renderer::Adreno;
-	else if (strstr(strRenderer, "VideoCore IV") != nullptr)
+	else if (strstr((const char*)strRenderer, "VideoCore IV") != nullptr)
 		renderer = Renderer::VideoCore;
-	else if (strstr(strRenderer, "Intel") != nullptr)
+	else if (strstr((const char*)strRenderer, "Intel") != nullptr)
 		renderer = Renderer::Intel;
-	else if (strstr(strRenderer, "PowerVR") != nullptr)
+	else if (strstr((const char*)strRenderer, "PowerVR") != nullptr)
 		renderer = Renderer::PowerVR;
-	else if (strstr(strRenderer, "NVIDIA Tegra") != nullptr)
+	else if (strstr((const char*)strRenderer, "NVIDIA Tegra") != nullptr)
 		renderer = Renderer::Tegra;
 	LOG(LOG_VERBOSE, "OpenGL renderer: %s", strRenderer);
 
@@ -84,7 +73,7 @@ void GLInfo::init() {
 
 #ifndef OS_ANDROID
 	if (renderer == Renderer::Tegra) {
-		std::string strDriverVersionString(strDriverVersion);
+		std::string strDriverVersionString((const char*)strDriverVersion);
 		std::string nvidiaText = "NVIDIA";
 		std::size_t versionPosition = strDriverVersionString.find(nvidiaText);
 
@@ -101,13 +90,11 @@ void GLInfo::init() {
 	fragment_interlock = Utils::isExtensionSupported(*this, "GL_ARB_fragment_shader_interlock") && !hasBuggyFragmentShaderInterlock;
 	fragment_interlockNV = Utils::isExtensionSupported(*this, "GL_NV_fragment_shader_interlock") && !fragment_interlock && !hasBuggyFragmentShaderInterlock;
 	fragment_ordering = Utils::isExtensionSupported(*this, "GL_INTEL_fragment_shader_ordering") && !fragment_interlock && !fragment_interlockNV;
-	
-	const bool imageTexturesInterlock = imageTextures && (fragment_interlock || fragment_interlockNV || fragment_ordering);
 
-	if (isGLES2) {
+	imageTextures = imageTextures && (fragment_interlock || fragment_interlockNV || fragment_ordering);
+
+	if (isGLES2)
 		config.generalEmulation.enableFragmentDepthWrite = 0;
-		config.generalEmulation.enableHybridFilter = 0;
-	}
 
 	bufferStorage = (!isGLESX && (numericVersion >= 44)) || Utils::isExtensionSupported(*this, "GL_ARB_buffer_storage") ||
 			Utils::isExtensionSupported(*this, "GL_EXT_buffer_storage");
@@ -166,7 +153,7 @@ void GLInfo::init() {
 	texture_barrier = !isGLESX && (numericVersion >= 45 || Utils::isExtensionSupported(*this, "GL_ARB_texture_barrier"));
 	texture_barrierNV = Utils::isExtensionSupported(*this, "GL_NV_texture_barrier");
 
-	ext_fetch = Utils::isExtensionSupported(*this, "GL_EXT_shader_framebuffer_fetch") && !isGLES2 && (!isGLESX || ext_draw_buffers_indexed) && !imageTexturesInterlock;
+	ext_fetch = Utils::isExtensionSupported(*this, "GL_EXT_shader_framebuffer_fetch") && !isGLES2 && (!isGLESX || ext_draw_buffers_indexed) && !imageTextures;
 	eglImage = (Utils::isEGLExtensionSupported("EGL_KHR_image_base") || Utils::isEGLExtensionSupported("EGL_KHR_image"));
 
 #ifdef OS_ANDROID
@@ -175,34 +162,10 @@ void GLInfo::init() {
 		    (renderer != Renderer::PowerVR);
 #endif
 
-	eglImageFramebuffer = eglImage && !isGLES2;
-
-	if (config.frameBufferEmulation.N64DepthCompare != Config::dcDisable) {
-		if (config.frameBufferEmulation.N64DepthCompare == Config::dcFast) {
-			if (!imageTexturesInterlock && !ext_fetch) {
-				config.frameBufferEmulation.N64DepthCompare = Config::dcDisable;
-				LOG(LOG_WARNING, "Your GPU does not support the extensions needed for fast N64 Depth Compare.");
-			}
-		} else {
-			// Compatible
-			if (!imageTextures) {
-				config.frameBufferEmulation.N64DepthCompare = Config::dcDisable;
-				LOG(LOG_WARNING, "Your GPU does not support the extensions needed for N64 Depth Compare.");
-			}
+	if (config.frameBufferEmulation.N64DepthCompare != 0) {
+		if (!imageTextures && !ext_fetch) {
+			config.frameBufferEmulation.N64DepthCompare = 0;
+			LOG(LOG_WARNING, "Your GPU does not support the extensions needed for N64 Depth Compare.");
 		}
 	}
-
-#ifdef EGL
-	if (isGLESX)
-	{
-		ptrDebugMessageCallback = (PFNGLDEBUGMESSAGECALLBACKPROC) eglGetProcAddress("glDebugMessageCallbackKHR");
-		ptrDebugMessageControl = (PFNGLDEBUGMESSAGECONTROLPROC) eglGetProcAddress("glDebugMessageControlKHR");
-	}
-#endif
-
-#ifdef GL_DEBUG
-	glDebugMessageCallback(on_gl_error, nullptr);
-	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-#endif
 }

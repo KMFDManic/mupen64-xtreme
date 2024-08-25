@@ -40,10 +40,7 @@ void _loadSettings(QSettings & settings)
 	settings.endGroup();
 
 	settings.beginGroup("generalEmulation");
-	config.generalEmulation.enableDitheringPattern = settings.value("enableDitheringPattern", config.generalEmulation.enableDitheringPattern).toInt();
-	config.generalEmulation.enableDitheringQuantization = settings.value("enableDitheringQuantization", config.generalEmulation.enableDitheringQuantization).toInt();
-	config.generalEmulation.enableHiresNoiseDithering = settings.value("enableHiresNoiseDithering", config.generalEmulation.enableHiresNoiseDithering).toInt();
-	config.generalEmulation.rdramImageDitheringMode = settings.value("rdramImageDitheringMode", config.generalEmulation.rdramImageDitheringMode).toInt();
+	config.generalEmulation.enableNoise = settings.value("enableNoise", config.generalEmulation.enableNoise).toInt();
 	config.generalEmulation.enableLOD = settings.value("enableLOD", config.generalEmulation.enableLOD).toInt();
 	config.generalEmulation.enableHWLighting = settings.value("enableHWLighting", config.generalEmulation.enableHWLighting).toInt();
 	config.generalEmulation.enableShadersStorage = settings.value("enableShadersStorage", config.generalEmulation.enableShadersStorage).toInt();
@@ -70,7 +67,6 @@ void _loadSettings(QSettings & settings)
 	config.frameBufferEmulation.fbInfoDisabled = settings.value("fbInfoDisabled", config.frameBufferEmulation.fbInfoDisabled).toInt();
 	config.frameBufferEmulation.fbInfoReadColorChunk = settings.value("fbInfoReadColorChunk", config.frameBufferEmulation.fbInfoReadColorChunk).toInt();
 	config.frameBufferEmulation.fbInfoReadDepthChunk = settings.value("fbInfoReadDepthChunk", config.frameBufferEmulation.fbInfoReadDepthChunk).toInt();
-	config.frameBufferEmulation.copyDepthToMainDepthBuffer = settings.value("copyDepthToMainDepthBuffer", config.frameBufferEmulation.copyDepthToMainDepthBuffer).toInt();
 	config.frameBufferEmulation.enableOverscan = settings.value("enableOverscan", config.frameBufferEmulation.enableOverscan).toInt();
 	config.frameBufferEmulation.overscanPAL.left = settings.value("overscanPalLeft", config.frameBufferEmulation.overscanPAL.left).toInt();
 	config.frameBufferEmulation.overscanPAL.right = settings.value("overscanPalRight", config.frameBufferEmulation.overscanPAL.right).toInt();
@@ -95,8 +91,6 @@ void _loadSettings(QSettings & settings)
 	config.textureFilter.txForce16bpp = settings.value("txForce16bpp", config.textureFilter.txForce16bpp).toInt();
 	config.textureFilter.txCacheCompression = settings.value("txCacheCompression", config.textureFilter.txCacheCompression).toInt();
 	config.textureFilter.txSaveCache = settings.value("txSaveCache", config.textureFilter.txSaveCache).toInt();
-	config.textureFilter.txEnhancedTextureFileStorage = settings.value("txEnhancedTextureFileStorage", config.textureFilter.txEnhancedTextureFileStorage).toInt();
-	config.textureFilter.txHiresTextureFileStorage = settings.value("txHiresTextureFileStorage", config.textureFilter.txHiresTextureFileStorage).toInt();
 	QString txPath = QString::fromWCharArray(config.textureFilter.txPath);
 	config.textureFilter.txPath[settings.value("txPath", txPath).toString().toWCharArray(config.textureFilter.txPath)] = L'\0';
 	QString txCachePath = QString::fromWCharArray(config.textureFilter.txCachePath);
@@ -215,10 +209,7 @@ void writeSettings(const QString & _strIniFolder)
 	settings.endGroup();
 
 	settings.beginGroup("generalEmulation");
-	settings.setValue("enableDitheringPattern", config.generalEmulation.enableDitheringPattern);
-	settings.setValue("enableDitheringQuantization", config.generalEmulation.enableDitheringQuantization);
-	settings.setValue("enableHiresNoiseDithering", config.generalEmulation.enableHiresNoiseDithering);
-	settings.setValue("rdramImageDitheringMode", config.generalEmulation.rdramImageDitheringMode);
+	settings.setValue("enableNoise", config.generalEmulation.enableNoise);
 	settings.setValue("enableLOD", config.generalEmulation.enableLOD);
 	settings.setValue("enableHWLighting", config.generalEmulation.enableHWLighting);
 	settings.setValue("enableShadersStorage", config.generalEmulation.enableShadersStorage);
@@ -245,7 +236,6 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("fbInfoDisabled", config.frameBufferEmulation.fbInfoDisabled);
 	settings.setValue("fbInfoReadColorChunk", config.frameBufferEmulation.fbInfoReadColorChunk);
 	settings.setValue("fbInfoReadDepthChunk", config.frameBufferEmulation.fbInfoReadDepthChunk);
-	settings.setValue("copyDepthToMainDepthBuffer", config.frameBufferEmulation.copyDepthToMainDepthBuffer);
 	settings.setValue("enableOverscan", config.frameBufferEmulation.enableOverscan);
 	settings.setValue("overscanPalLeft", config.frameBufferEmulation.overscanPAL.left);
 	settings.setValue("overscanPalRight", config.frameBufferEmulation.overscanPAL.right);
@@ -270,8 +260,6 @@ void writeSettings(const QString & _strIniFolder)
 	settings.setValue("txForce16bpp", config.textureFilter.txForce16bpp);
 	settings.setValue("txCacheCompression", config.textureFilter.txCacheCompression);
 	settings.setValue("txSaveCache", config.textureFilter.txSaveCache);
-	settings.setValue("txEnhancedTextureFileStorage", config.textureFilter.txEnhancedTextureFileStorage);
-	settings.setValue("txHiresTextureFileStorage", config.textureFilter.txHiresTextureFileStorage);
 	settings.setValue("txPath", QString::fromWCharArray(config.textureFilter.txPath));
 	settings.setValue("txCachePath", QString::fromWCharArray(config.textureFilter.txCachePath));
 	settings.setValue("txDumpPath", QString::fromWCharArray(config.textureFilter.txDumpPath));
@@ -408,10 +396,7 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 	settings.endGroup();
 
 	settings.beginGroup("generalEmulation");
-	WriteCustomSetting(generalEmulation, enableDitheringPattern);
-	WriteCustomSetting(generalEmulation, enableDitheringQuantization);
-	WriteCustomSetting(generalEmulation, enableHiresNoiseDithering);
-	WriteCustomSetting(generalEmulation, rdramImageDitheringMode);
+	WriteCustomSetting(generalEmulation, enableNoise);
 	WriteCustomSetting(generalEmulation, enableLOD);
 	WriteCustomSetting(generalEmulation, enableHWLighting);
 	WriteCustomSetting(generalEmulation, enableShadersStorage);
@@ -437,7 +422,6 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 	WriteCustomSetting(frameBufferEmulation, fbInfoDisabled);
 	WriteCustomSetting(frameBufferEmulation, fbInfoReadColorChunk);
 	WriteCustomSetting(frameBufferEmulation, fbInfoReadDepthChunk);
-	WriteCustomSetting(frameBufferEmulation, copyDepthToMainDepthBuffer);
 	WriteCustomSetting(frameBufferEmulation, enableOverscan);
 	WriteCustomSetting2(frameBufferEmulation, overscanPalLeft, overscanPAL.left);
 	WriteCustomSetting2(frameBufferEmulation, overscanPalRight, overscanPAL.right);
@@ -455,8 +439,6 @@ void saveCustomRomSettings(const QString & _strIniFolder, const char * _strRomNa
 	WriteCustomSetting(textureFilter, txDeposterize);
 	WriteCustomSetting(textureFilter, txFilterIgnoreBG);
 	WriteCustomSetting(textureFilter, txCacheSize);
-	WriteCustomSetting(textureFilter, txEnhancedTextureFileStorage);
-	WriteCustomSetting(textureFilter, txHiresTextureFileStorage);
 	WriteCustomSetting(textureFilter, txHiresEnable);
 	WriteCustomSetting(textureFilter, txHiresFullAlphaChannel);
 	WriteCustomSetting(textureFilter, txHresAltCRC);

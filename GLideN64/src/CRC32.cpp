@@ -32,17 +32,16 @@ void CRC_Init()
 	}
 }
 
-u64 CRC_Calculate( u64 crc, const void * buffer, u32 count )
+u32 CRC_Calculate( u32 crc, const void * buffer, u32 count )
 {
 	u8 *p;
-	u32 crc32 = static_cast<u32>(crc);
-	u32 orig = crc32;
+	u32 orig = crc;
 
 	p = (u8*) buffer;
 	while (count--)
-		crc32 = (crc32 >> 8) ^ CRCTable[(crc32 & 0xFF) ^ *p++];
+		crc = (crc >> 8) ^ CRCTable[(crc & 0xFF) ^ *p++];
 
-	return crc32 ^ orig;
+	return crc ^ orig;
 }
 
 u32 CRC_Calculate_Strict( u32 crc, const void * buffer, u32 count )
@@ -50,19 +49,18 @@ u32 CRC_Calculate_Strict( u32 crc, const void * buffer, u32 count )
 	return CRC_Calculate(crc, buffer, count);
 }
 
-u64 CRC_CalculatePalette(u64 crc, const void * buffer, u32 count )
+u32 CRC_CalculatePalette(u32 crc, const void * buffer, u32 count )
 {
 	u8 *p;
-	u32 crc32 = static_cast<u32>(crc);
-	u32 orig = crc32;
+	u32 orig = crc;
 
 	p = (u8*) buffer;
 	while (count--) {
-		crc32 = (crc32 >> 8) ^ CRCTable[(crc32 & 0xFF) ^ *p++];
-		crc32 = (crc32 >> 8) ^ CRCTable[(crc32 & 0xFF) ^ *p++];
+		crc = (crc >> 8) ^ CRCTable[(crc & 0xFF) ^ *p++];
+		crc = (crc >> 8) ^ CRCTable[(crc & 0xFF) ^ *p++];
 
 		p += 6;
 	}
 
-	return crc32 ^ orig;
+	return crc ^ orig;
 }

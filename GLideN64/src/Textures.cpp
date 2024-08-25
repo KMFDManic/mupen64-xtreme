@@ -21,7 +21,7 @@
 #include "Graphics/Context.h"
 #include "Graphics/Parameters.h"
 #include "DisplayWindow.h"
-#include <mupen64plus-next_common.h>
+#include <GLideN64/GLideN64_libretro.h>
 
 using namespace std;
 using namespace graphics;
@@ -156,7 +156,7 @@ inline u32 GetI8_RGBA4444( u64 *src, u16 x, u16 i, u8 palette )
 inline u32 GetCI16IA_RGBA8888(u64 *src, u16 x, u16 i, u8 palette)
 {
 	const u16 tex = ((u16*)src)[x^i];
-	const u16 col = (*(u16*)&TMEM[256 + (tex & 0xFF)]);
+	const u16 col = (*(u16*)&TMEM[256 + (tex >> 8)]);
 	const u16 c = col >> 8;
 	const u16 a = col & 0xFF;
 	return (a << 24) | (c << 16) | (c << 8) | c;
@@ -165,7 +165,7 @@ inline u32 GetCI16IA_RGBA8888(u64 *src, u16 x, u16 i, u8 palette)
 inline u32 GetCI16IA_RGBA4444(u64 *src, u16 x, u16 i, u8 palette)
 {
 	const u16 tex = ((u16*)src)[x^i];
-	const u16 col = (*(u16*)&TMEM[256 + (tex & 0xFF)]);
+	const u16 col = (*(u16*)&TMEM[256 + (tex >> 8)]);
 	const u16 c = col >> 12;
 	const u16 a = col & 0x0F;
 	return (a << 12) | (c << 8) | (c << 4) | c;
@@ -215,10 +215,28 @@ inline u32 GetRGBA8888_RGBA4444( u64 *src, u16 x, u16 i, u8 palette )
 	return RGBA8888_RGBA4444(((u32*)src)[x^i]);
 }
 
+#if 0
+u32 YUV_RGBA8888(u8 y, u8 u, u8 v)
+{
+	s32 r = (s32)(y + (1.370705f * (v - 128)));
+	s32 g = (s32)((y - (0.698001f * (v - 128)) - (0.337633f * (u - 128))));
+	s32 b = (s32)(y + (1.732446f * (u - 128)));
+	//clipping the result
+	if (r > 255) r = 255;
+	if (g > 255) g = 255;
+	if (b > 255) b = 255;
+	if (r < 0) r = 0;
+	if (g < 0) g = 0;
+	if (b < 0) b = 0;
+
+	return (0xff << 24) | (b << 16) | (g << 8) | r;
+}
+#else
 inline u32 YUV_RGBA8888(u8 y, u8 u, u8 v)
 {
 	return (0xff << 24) | (y << 16) | (v << 8) | u;
 }
+#endif
 
 inline void GetYUV_RGBA8888(u64 * src, u32 * dst, u16 x)
 {
@@ -443,12 +461,12 @@ void TextureCache::_initDummyTexture(CachedTexture * _pDummy)
 	_pDummy->frameBufferTexture = CachedTexture::fbNone;
 	_pDummy->width = 2;
 	_pDummy->height = 2;
+	_pDummy->realWidth = 2;
+	_pDummy->realHeight = 2;
 	_pDummy->maskS = 0;
 	_pDummy->maskT = 0;
 	_pDummy->scaleS = 0.5f;
 	_pDummy->scaleT = 0.5f;
-	_pDummy->hdRatioS = 1.0f;
-	_pDummy->hdRatioT = 1.0f;
 	_pDummy->shiftScaleS = 1.0f;
 	_pDummy->shiftScaleT = 1.0f;
 	_pDummy->textureBytes = 2 * 2 * 4;
@@ -461,15 +479,15 @@ void TextureCache::init()
 
 	u32 dummyTexture[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	m_pDummy = addFrameBufferTexture(textureTarget::TEXTURE_2D); // we don't want to remove dummy texture
+	m_pDummy = addFrameBufferTexture(false); // we don't want to remove dummy texture
 	_initDummyTexture(m_pDummy);
 
 	Context::InitTextureParams params;
 	params.handle = m_pDummy->name;
 	params.mipMapLevel = 0;
 	params.msaaLevel = 0;
-	params.width = m_pDummy->width;
-	params.height = m_pDummy->height;
+	params.width = m_pDummy->realWidth;
+	params.height = m_pDummy->realHeight;
 	params.format = colorFormat::RGBA;
 	params.internalFormat = gfxContext.convertInternalTextureFormat(u32(internalcolorFormat::RGBA8));
 	params.dataType = datatype::UNSIGNED_BYTE;
@@ -483,15 +501,15 @@ void TextureCache::init()
 
 	m_pMSDummy = nullptr;
 	if (config.video.multisampling != 0 && Context::Multisampling) {
-		m_pMSDummy = addFrameBufferTexture(textureTarget::TEXTURE_2D_MULTISAMPLE); // we don't want to remove dummy texture
+		m_pMSDummy = addFrameBufferTexture(true); // we don't want to remove dummy texture
 		_initDummyTexture(m_pMSDummy);
 
 		Context::InitTextureParams msParams;
 		msParams.handle = m_pMSDummy->name;
 		msParams.mipMapLevel = 0;
 		msParams.msaaLevel = config.video.multisampling;
-		msParams.width = m_pMSDummy->width;
-		msParams.height = m_pMSDummy->height;
+		msParams.width = m_pMSDummy->realWidth;
+		msParams.height = m_pMSDummy->realHeight;
 		msParams.format = colorFormat::RGBA;
 		msParams.internalFormat = gfxContext.convertInternalTextureFormat(u32(internalcolorFormat::RGBA8));
 		msParams.dataType = datatype::UNSIGNED_BYTE;
@@ -529,15 +547,15 @@ void TextureCache::_checkCacheSize()
 	}
 }
 
-CachedTexture * TextureCache::_addTexture(u64 _crc64)
+CachedTexture * TextureCache::_addTexture(u32 _crc32)
 {
 	if (m_curUnpackAlignment == 0)
 		m_curUnpackAlignment = gfxContext.getTextureUnpackAlignment();
 	_checkCacheSize();
 	m_textures.emplace_front(gfxContext.createTexture(textureTarget::TEXTURE_2D));
 	Textures::iterator new_iter = m_textures.begin();
-	new_iter->crc = _crc64;
-	m_lruTextureLocations.insert(std::pair<u64, Textures::iterator>(_crc64, new_iter));
+	new_iter->crc = _crc32;
+	m_lruTextureLocations.insert(std::pair<u32, Textures::iterator>(_crc32, new_iter));
 	return &(*new_iter);
 }
 
@@ -551,20 +569,19 @@ void TextureCache::removeFrameBufferTexture(CachedTexture * _pTexture)
 	m_fbTextures.erase(iter);
 }
 
-CachedTexture * TextureCache::addFrameBufferTexture(graphics::Parameter _target)
+CachedTexture * TextureCache::addFrameBufferTexture(bool _multisample)
 {
-	ObjectHandle texName(gfxContext.createTexture(_target));
+	ObjectHandle texName(gfxContext.createTexture(_multisample ?
+		textureTarget::TEXTURE_2D_MULTISAMPLE : textureTarget::TEXTURE_2D));
 	m_fbTextures.emplace(u32(texName), texName);
 	return &m_fbTextures.at(u32(texName));
 }
 
 struct TileSizes
 {
-	u32 clampWidth = 0U;
-	u32 width = 0U;
-	u32 clampHeight = 0U;
-	u32 height = 0U;
-	u32 bytes = 0U;
+	u32 maskWidth, clampWidth, width, realWidth;
+	u32 maskHeight, clampHeight, height, realHeight;
+	u32 bytes;
 };
 
 static
@@ -574,8 +591,38 @@ void _calcTileSizes(u32 _t, TileSizes & _sizes, gDPTile * _pLoadTile)
 	pTile->masks = pTile->originalMaskS;
 	pTile->maskt = pTile->originalMaskT;
 
+	const TextureLoadParameters & loadParams =
+			ImageFormat::get().tlp[gDP.otherMode.textureLUT][pTile->size][pTile->format];
+	const u32 maxTexels = loadParams.maxTexels;
 	u32 tileWidth = ((pTile->lrs - pTile->uls) & 0x03FF) + 1;
 	u32 tileHeight = ((pTile->lrt - pTile->ult) & 0x03FF) + 1;
+	if (tileWidth == 1 && tileHeight == 1 &&
+		gDP.otherMode.cycleType == G_CYC_COPY &&
+		_pLoadTile != nullptr &&
+		_pLoadTile->loadType == LOADTYPE_BLOCK) {
+		const u32 ulx = _SHIFTR(RDP.w1, 14, 10);
+		const u32 uly = _SHIFTR(RDP.w1, 2, 10);
+		const u32 lrx = _SHIFTR(RDP.w0, 14, 10);
+		const u32 lry = _SHIFTR(RDP.w0, 2, 10);
+		tileWidth = lrx - ulx + 1;
+		tileHeight = lry - uly + 1;
+	}
+
+	const bool bUseLoadSizes = _pLoadTile != nullptr && _pLoadTile->loadType == LOADTYPE_TILE &&
+		(pTile->tmem == _pLoadTile->tmem);
+
+	u32 loadWidth = 0, loadHeight = 0;
+	if (bUseLoadSizes) {
+		loadWidth = ((_pLoadTile->lrs - _pLoadTile->uls) & 0x03FF) + 1;
+		loadHeight = ((_pLoadTile->lrt - _pLoadTile->ult) & 0x03FF) + 1;
+	}
+
+	const u32 lineWidth = pTile->line << loadParams.lineShift;
+	const u32 lineHeight = lineWidth != 0 ? min(maxTexels / lineWidth, tileHeight) : 0;
+
+	u32 maskWidth = 1 << pTile->masks;
+	u32 maskHeight = 1 << pTile->maskt;
+	u32 width, height;
 
 	const u32 tMemMask = gDP.otherMode.textureLUT == G_TT_NONE ? 0x1FF : 0xFF;
 	gDPLoadTileInfo &info = gDP.loadInfo[pTile->tmem & tMemMask];
@@ -592,74 +639,75 @@ void _calcTileSizes(u32 _t, TileSizes & _sizes, gDPTile * _pLoadTile)
 		gDP.loadTile->loadWidth = gDP.loadTile->loadHeight = 0;
 	}
 	_sizes.bytes = info.bytes;
-
-	if (tileWidth == 1 && tileHeight == 1 &&
-		gDP.otherMode.cycleType == G_CYC_COPY &&
-		_pLoadTile != nullptr) {
-		const u32 ulx = _SHIFTR(RDP.w1, 14, 10);
-		const u32 uly = _SHIFTR(RDP.w1, 2, 10);
-		const u32 lrx = _SHIFTR(RDP.w0, 14, 10);
-		const u32 lry = _SHIFTR(RDP.w0, 2, 10);
-		tileWidth = lrx - ulx + 1;
-		tileHeight = lry - uly + 1;
-	}
-
-	u32 width = 0, height = 0;
 	if (info.loadType == LOADTYPE_TILE) {
-		width = min(info.width, info.texWidth);
-		if (width == 0)
-			width = tileWidth;
-		if (info.size > pTile->size)
-			width <<= info.size - pTile->size;
-
-		height = info.height;
-		if (height == 0)
-			height = tileHeight;
-		if ((config.generalEmulation.hacks & hack_MK64) != 0 && (height % 2) != 0)
-			height--;
+		if (pTile->masks && ((maskWidth * maskHeight) <= maxTexels))
+			width = maskWidth; // Use mask width if set and valid
+		else {
+			width = info.width;
+			if (info.size > pTile->size)
+				width <<= info.size - pTile->size;
+		}
+		if (pTile->maskt && ((maskWidth * maskHeight) <= maxTexels))
+			height = maskHeight;
+		else
+			height = info.height;
 	} else {
-		const TextureLoadParameters & loadParams =
-			ImageFormat::get().tlp[gDP.otherMode.textureLUT][pTile->size][pTile->format];
-
-		int tile_width = pTile->lrs - pTile->uls + 1;
-		int tile_height = pTile->lrt - pTile->ult + 1;
-
-		int mask_width = (pTile->masks == 0) ? (tile_width) : (1 << pTile->masks);
-		int mask_height = (pTile->maskt == 0) ? (tile_height) : (1 << pTile->maskt);
-
-		if (pTile->clamps)
-			width = min(mask_width, tile_width);
-		else if ((u32)(mask_width * mask_height) <= loadParams.maxTexels)
-			width = mask_width;
+		if (pTile->masks && ((maskWidth * maskHeight) <= maxTexels))
+			width = maskWidth; // Use mask width if set and valid
+		else if ((tileWidth * tileHeight) <= maxTexels)
+			width = tileWidth; // else use tile width if valid
 		else
-			width = tileWidth;
+			width = lineWidth; // else use line-based width
 
-		if (pTile->clampt)
-			height = min(mask_height, tile_height);
-		else if ((u32)(mask_width * mask_height) <= loadParams.maxTexels)
-			height = mask_height;
-		else
+		if (pTile->maskt && ((maskWidth * maskHeight) <= maxTexels))
+			height = maskHeight;
+		else if ((tileWidth * tileHeight) <= maxTexels)
 			height = tileHeight;
+		else
+			height = lineHeight;
 	}
 
 	_sizes.clampWidth = (pTile->clamps && gDP.otherMode.cycleType != G_CYC_COPY) ? tileWidth : width;
 	_sizes.clampHeight = (pTile->clampt && gDP.otherMode.cycleType != G_CYC_COPY) ? tileHeight : height;
 
-	_sizes.width = (info.loadType == LOADTYPE_TILE &&
-					pTile->clamps != 0 &&
-					pTile->masks == 0) ?
-					_sizes.clampWidth :
-					width;
-	_sizes.height = (info.loadType == LOADTYPE_TILE &&
-					pTile->clampt != 0 &&
-					pTile->maskt == 0) ?
-					_sizes.clampHeight :
-					height;
+	// Make sure masking is valid
+	if (maskWidth > width) {
+		pTile->masks = powof(width);
+		maskWidth = 1 << pTile->masks;
+	}
+
+	if (maskHeight > height) {
+		pTile->maskt = powof(height);
+		maskHeight = 1 << pTile->maskt;
+	}
+
+	_sizes.maskWidth = maskWidth;
+	_sizes.maskHeight = maskHeight;
+	_sizes.width = width;
+	_sizes.height = height;
+
+	if (pTile->clamps != 0)
+		_sizes.realWidth = _sizes.clampWidth;
+	else if (pTile->masks != 0)
+		_sizes.realWidth = _sizes.maskWidth;
+	else
+		_sizes.realWidth = _sizes.width;
+
+	if (pTile->clampt != 0)
+		_sizes.realHeight = _sizes.clampHeight;
+	else if (pTile->maskt != 0)
+		_sizes.realHeight = _sizes.maskHeight;
+	else
+		_sizes.realHeight = _sizes.height;
+
+	if (gSP.texture.level > 0) {
+		_sizes.realWidth = pow2(_sizes.realWidth);
+		_sizes.realHeight = pow2(_sizes.realHeight);
+	}
 }
 
-
 inline
-void _updateCachedTexture(const GHQTexInfo & _info, CachedTexture *_pTexture, u16 widthOrg, u16 heightOrg)
+void _updateCachedTexture(const GHQTexInfo & _info, CachedTexture *_pTexture, f32 _scale)
 {
 	_pTexture->textureBytes = _info.width * _info.height;
 
@@ -668,15 +716,20 @@ void _updateCachedTexture(const GHQTexInfo & _info, CachedTexture *_pTexture, u1
 		format == internalcolorFormat::RGBA4 ||
 		format == internalcolorFormat::RGB5_A1) {
 		_pTexture->textureBytes <<= 1;
-	} else {
+	}
+	else {
 		_pTexture->textureBytes <<= 2;
 	}
 
-	_pTexture->scaleS = 1.0f / (_pTexture->maskS ? f32(pow2(widthOrg)) : f32(widthOrg));
-	_pTexture->scaleT = 1.0f / (_pTexture->maskT ? f32(pow2(heightOrg)) : f32(heightOrg));
-	
-	_pTexture->hdRatioS = f32(_info.width / _pTexture->width);
-	_pTexture->hdRatioT = f32(_info.height / _pTexture->height);
+	if (_pTexture->realWidth == _pTexture->width * 2)
+		_pTexture->clampS = 0; // force wrap or mirror s
+	if (_pTexture->realHeight == _pTexture->height * 2)
+		_pTexture->clampT = 0; // force wrap or mirror t
+
+	_pTexture->realWidth = _info.width;
+	_pTexture->realHeight = _info.height;
+	_pTexture->scaleS = _scale / f32(_info.width);
+	_pTexture->scaleT = _scale / f32(_info.height);
 
 	_pTexture->bHDTexture = true;
 }
@@ -725,7 +778,7 @@ bool TextureCache::_loadHiresBackground(CachedTexture *_pTexture, u64 & _ricecrc
 		gfxContext.init2DTexture(params);
 
 		assert(!gfxContext.isError());
-		_updateCachedTexture(ghqTexInfo, _pTexture, tile_width, tile_height);
+		_updateCachedTexture(ghqTexInfo, _pTexture, f32(ghqTexInfo.width) / f32(tile_width));
 		return true;
 	}
 	return false;
@@ -752,12 +805,12 @@ void TextureCache::_loadBackground(CachedTexture *pTexture)
 	const TextureLoadParameters & loadParams =
 			ImageFormat::get().tlp[pTexture->format == 2 ? G_TT_RGBA16 : G_TT_NONE][pTexture->size][pTexture->format];
 	if (loadParams.autoFormat == internalcolorFormat::RGBA8) {
-		pTexture->textureBytes = (pTexture->width * pTexture->height) << 2;
+		pTexture->textureBytes = (pTexture->realWidth * pTexture->realHeight) << 2;
 		GetTexel = loadParams.Get32;
 		glInternalFormat = loadParams.glInternalFormat32;
 		glType = loadParams.glType32;
 	} else {
-		pTexture->textureBytes = (pTexture->width * pTexture->height) << 1;
+		pTexture->textureBytes = (pTexture->realWidth * pTexture->realHeight) << 1;
 		GetTexel = loadParams.Get16;
 		glInternalFormat = loadParams.glInternalFormat16;
 		glType = loadParams.glType16;
@@ -780,12 +833,12 @@ void TextureCache::_loadBackground(CachedTexture *pTexture)
 	clampTClamp = pTexture->height - 1;
 
 	j = 0;
-	for (y = 0; y < pTexture->height; y++) {
+	for (y = 0; y < pTexture->realHeight; y++) {
 		ty = min(y, (u32)clampTClamp);
 
 		pSrc = &pSwapped[bpl * ty];
 
-		for (x = 0; x < pTexture->width; x++) {
+		for (x = 0; x < pTexture->realWidth; x++) {
 			tx = min(x, (u32)clampSClamp);
 
 			if (glInternalFormat == internalcolorFormat::RGBA8)
@@ -805,8 +858,8 @@ void TextureCache::_loadBackground(CachedTexture *pTexture)
 	if (m_toggleDumpTex &&
 		config.textureFilter.txHiresEnable != 0 &&
 		config.textureFilter.txDump != 0) {
-		txfilter_dmptx((u8*)pDest, pTexture->width, pTexture->height,
-			pTexture->width, (u16)u32(glInternalFormat),
+		txfilter_dmptx((u8*)pDest, pTexture->realWidth, pTexture->realHeight,
+			pTexture->realWidth, (u16)u32(glInternalFormat),
 			(unsigned short)(pTexture->format << 8 | pTexture->size),
 			ricecrc);
 	}
@@ -816,7 +869,7 @@ void TextureCache::_loadBackground(CachedTexture *pTexture)
 			config.textureFilter.txFilterIgnoreBG == 0 &&
 			TFH.isInited()) {
 		GHQTexInfo ghqTexInfo;
-		if (txfilter_filter((u8*)pDest, pTexture->width, pTexture->height,
+		if (txfilter_filter((u8*)pDest, pTexture->realWidth, pTexture->realHeight,
 				(u16)u32(glInternalFormat), (uint64)pTexture->crc, &ghqTexInfo) != 0 &&
 				ghqTexInfo.data != nullptr) {
 
@@ -837,19 +890,19 @@ void TextureCache::_loadBackground(CachedTexture *pTexture)
 			params.dataType = DatatypeParam(ghqTexInfo.pixel_type);
 			params.data = ghqTexInfo.data;
 			gfxContext.init2DTexture(params);
-			_updateCachedTexture(ghqTexInfo, pTexture, pTexture->width, pTexture->height);
+			_updateCachedTexture(ghqTexInfo, pTexture, f32(ghqTexInfo.width) / f32(pTexture->realWidth));
 			bLoaded = true;
 		}
 	}
 	if (!bLoaded) {
-		if (pTexture->width % 2 != 0 && glInternalFormat != internalcolorFormat::RGBA8)
+		if (pTexture->realWidth % 2 != 0 && glInternalFormat != internalcolorFormat::RGBA8)
 			gfxContext.setTextureUnpackAlignment(2);
 		Context::InitTextureParams params;
 		params.handle = pTexture->name;
 		params.mipMapLevel = 0;
 		params.msaaLevel = 0;
-		params.width = pTexture->width;
-		params.height = pTexture->height;
+		params.width = pTexture->realWidth;
+		params.height = pTexture->realHeight;
 		params.format = colorFormat::RGBA;
 		params.internalFormat = gfxContext.convertInternalTextureFormat(u32(glInternalFormat));
 		params.dataType = glType;
@@ -869,11 +922,6 @@ bool TextureCache::_loadHiresTexture(u32 _tile, CachedTexture *_pTexture, u64 & 
 
 	gDPLoadTileInfo & info = gDP.loadInfo[_pTexture->tMem];
 
-	// Temporal workaround for crash problem with mip-mapped textures. See #1711 for details.
-	// TODO: make proper fix.
-	if (info.texAddress == 0)
-		return false;
-
 	int bpl;
 	int width, height;
 	u8 * addr = (u8*)(RDRAM + info.texAddress);
@@ -889,27 +937,26 @@ bool TextureCache::_loadHiresTexture(u32 _tile, CachedTexture *_pTexture, u64 & 
 		if ((config.generalEmulation.hacks & hack_MK64) != 0 && (height % 2) != 0)
 			height--;
 	} else {
-		const gDPTile * pTile = gSP.textureTile[_tile];
-		int tile_width = pTile->lrs - pTile->uls + 1;
-		int tile_height = pTile->lrt - pTile->ult + 1;
+		int tile_width = gDP.tiles[_tile].lrs - gDP.tiles[_tile].uls + 1;
+		int tile_height = gDP.tiles[_tile].lrt - gDP.tiles[_tile].ult + 1;
 
-		int mask_width = (pTile->masks == 0) ? (tile_width) : (1 << pTile->masks);
-		int mask_height = (pTile->maskt == 0) ? (tile_height) : (1 << pTile->maskt);
+		int mask_width = (gDP.tiles[_tile].masks == 0) ? (tile_width) : (1 << gDP.tiles[_tile].masks);
+		int mask_height = (gDP.tiles[_tile].maskt == 0) ? (tile_height) : (1 << gDP.tiles[_tile].maskt);
 
-		if ((pTile->clamps && tile_width <= 256))
+		if ((gDP.tiles[_tile].clamps && tile_width <= 256))
 			width = min(mask_width, tile_width);
 		else
 			width = mask_width;
 
-		if ((pTile->clampt && tile_height <= 256) || (mask_height > 256))
+		if ((gDP.tiles[_tile].clampt && tile_height <= 256) || (mask_height > 256))
 			height = min(mask_height, tile_height);
 		else
 			height = mask_height;
 
-		if (pTile->size == G_IM_SIZ_32b)
-			bpl = pTile->line << 4;
+		if (gSP.textureTile[_tile]->size == G_IM_SIZ_32b)
+			bpl = gSP.textureTile[_tile]->line << 4;
 		else if (info.dxt == 0)
-			bpl = pTile->line << 3;
+			bpl = gSP.textureTile[_tile]->line << 3;
 		else {
 			u32 dxt = info.dxt;
 			if (dxt > 1)
@@ -950,7 +997,7 @@ bool TextureCache::_loadHiresTexture(u32 _tile, CachedTexture *_pTexture, u64 & 
 		params.textureUnitIndex = textureIndices::Tex[_tile];
 		gfxContext.init2DTexture(params);
 		assert(!gfxContext.isError());
-		_updateCachedTexture(ghqTexInfo, _pTexture, width, height);
+		_updateCachedTexture(ghqTexInfo, _pTexture, f32(ghqTexInfo.width) / f32(width));
 		return true;
 	}
 
@@ -962,7 +1009,7 @@ void TextureCache::_loadDepthTexture(CachedTexture * _pTexture, u16* _pDest)
 	if (!config.generalEmulation.enableFragmentDepthWrite)
 		return;
 
-	u32 size = _pTexture->width * _pTexture->height;
+	u32 size = _pTexture->realWidth * _pTexture->realHeight;
 	std::vector<f32> pDestFloat(size);
 	for (u32 i = 0; i < size; ++i)
 		pDestFloat[i] = _pDest[i] / 65535.0f;
@@ -971,8 +1018,8 @@ void TextureCache::_loadDepthTexture(CachedTexture * _pTexture, u16* _pDest)
 	params.handle = _pTexture->name;
 	params.mipMapLevel = 0;
 	params.msaaLevel = 0;
-	params.width = _pTexture->width;
-	params.height = _pTexture->height;
+	params.width = _pTexture->realWidth;
+	params.height = _pTexture->realHeight;
 	params.internalFormat = internalcolorFormat::R16F;
 	params.format = colorFormat::RED;
 	params.dataType = datatype::FLOAT;
@@ -989,26 +1036,29 @@ void TextureCache::_getTextureDestData(CachedTexture& tmptex,
 						GetTexelFunc GetTexel,
 						u16* pLine)
 {
-	u16 maskSMask, clampSClamp;
-	u16 maskTMask, clampTClamp;
+	u16 mirrorSBit, maskSMask, clampSClamp;
+	u16 mirrorTBit, maskTMask, clampTClamp;
 	u16 x, y, tx, ty;
 	u32 i, j;
 	u64 *pSrc;
-
 	if (tmptex.maskS > 0) {
 		clampSClamp = tmptex.clampS ? tmptex.clampWidth - 1 : (tmptex.mirrorS ? (tmptex.width << 1) - 1 : tmptex.width - 1);
 		maskSMask = (1 << tmptex.maskS) - 1;
+		mirrorSBit = tmptex.mirrorS != 0 ? 1 << tmptex.maskS : 0;
 	} else {
 		clampSClamp = tmptex.clampS ? tmptex.clampWidth - 1 : tmptex.width - 1;
 		maskSMask = 0xFFFF;
+		mirrorSBit = 0x0000;
 	}
 
 	if (tmptex.maskT > 0) {
 		clampTClamp = tmptex.clampT ? tmptex.clampHeight - 1 : (tmptex.mirrorT ? (tmptex.height << 1) - 1 : tmptex.height - 1);
 		maskTMask = (1 << tmptex.maskT) - 1;
+		mirrorTBit = tmptex.mirrorT != 0 ? 1 << tmptex.maskT : 0;
 	} else {
 		clampTClamp = tmptex.clampT ? tmptex.clampHeight - 1 : tmptex.height - 1;
 		maskTMask = 0xFFFF;
+		mirrorTBit = 0x0000;
 	}
 
 	if (tmptex.size == G_IM_SIZ_32b) {
@@ -1032,14 +1082,20 @@ void TextureCache::_getTextureDestData(CachedTexture& tmptex,
 		u16 gr, ab;
 
 		j = 0;
-		for (y = 0; y < tmptex.height; ++y) {
+		for (y = 0; y < tmptex.realHeight; ++y) {
 			ty = min(y, clampTClamp) & maskTMask;
+			if (y & mirrorTBit) {
+				ty ^= maskTMask;
+			}
 
 			u32 tline = tbase + line32 * ty;
 			u32 xorval = (ty & 1) ? 3 : 1;
 
-			for (x = 0; x < tmptex.width; ++x) {
+			for (x = 0; x < tmptex.realWidth; ++x) {
 				tx = min(x, clampSClamp) & maskSMask;
+				if (x & mirrorSBit) {
+					tx ^= maskSMask;
+				}
 
 				u32 taddr = ((tline + tx) ^ xorval) & 0x3ff;
 				gr = swapword(tmem16[taddr]);
@@ -1050,9 +1106,9 @@ void TextureCache::_getTextureDestData(CachedTexture& tmptex,
 	} else if (tmptex.format == G_IM_FMT_YUV) {
 		j = 0;
 		*pLine <<= 1;
-		for (y = 0; y < tmptex.height; ++y) {
+		for (y = 0; y < tmptex.realHeight; ++y) {
 			pSrc = &TMEM[tmptex.tMem] + *pLine * y;
-			for (x = 0; x < tmptex.width / 2; x++) {
+			for (x = 0; x < tmptex.realWidth / 2; x++) {
 				GetYUV_RGBA8888(pSrc, pDest + j, x);
 				j += 2;
 			}
@@ -1060,14 +1116,21 @@ void TextureCache::_getTextureDestData(CachedTexture& tmptex,
 	} else {
 		j = 0;
 		const u32 tMemMask = gDP.otherMode.textureLUT == G_TT_NONE ? 0x1FF : 0xFF;
-		for (y = 0; y < tmptex.height; ++y) {
+		for (y = 0; y < tmptex.realHeight; ++y) {
 			ty = min(y, clampTClamp) & maskTMask;
+
+			if (y & mirrorTBit)
+			ty ^= maskTMask;
 
 			pSrc = &TMEM[(tmptex.tMem + *pLine * ty) & tMemMask];
 
 			i = (ty & 1) << 1;
-			for (x = 0; x < tmptex.width; ++x) {
+			for (x = 0; x < tmptex.realWidth; ++x) {
 				tx = min(x, clampSClamp) & maskSMask;
+
+				if (x & mirrorSBit) {
+					tx ^= maskSMask;
+				}
 
 				if (glInternalFormat == internalcolorFormat::RGBA8) {
 					pDest[j++] = GetTexel(pSrc, tx, i, tmptex.palette);
@@ -1097,13 +1160,13 @@ void TextureCache::_load(u32 _tile, CachedTexture *_pTexture)
 			ImageFormat::get().tlp[gDP.otherMode.textureLUT][_pTexture->size][_pTexture->format];
 	if (loadParams.autoFormat == internalcolorFormat::RGBA8) {
 		sizeShift = 2;
-		_pTexture->textureBytes = (_pTexture->width * _pTexture->height) << sizeShift;
+		_pTexture->textureBytes = (_pTexture->realWidth * _pTexture->realHeight) << sizeShift;
 		GetTexel = loadParams.Get32;
 		glInternalFormat = loadParams.glInternalFormat32;
 		glType = loadParams.glType32;
 	} else {
 		sizeShift = 1;
-		_pTexture->textureBytes = (_pTexture->width * _pTexture->height) << sizeShift;
+		_pTexture->textureBytes = (_pTexture->realWidth * _pTexture->realHeight) << sizeShift;
 		GetTexel = loadParams.Get16;
 		glInternalFormat = loadParams.glInternalFormat16;
 		glType = loadParams.glType16;
@@ -1144,8 +1207,8 @@ void TextureCache::_load(u32 _tile, CachedTexture *_pTexture)
 		if (m_toggleDumpTex &&
 				config.textureFilter.txHiresEnable != 0 &&
 				config.textureFilter.txDump != 0) {
-			txfilter_dmptx((u8*)pDest, tmptex.width, tmptex.height,
-					tmptex.width, (u16)u32(glInternalFormat),
+			txfilter_dmptx((u8*)pDest, tmptex.realWidth, tmptex.realHeight,
+					tmptex.realWidth, (u16)u32(glInternalFormat),
 					(unsigned short)(_pTexture->format << 8 | _pTexture->size),
 					ricecrc);
 		}
@@ -1171,7 +1234,7 @@ void TextureCache::_load(u32 _tile, CachedTexture *_pTexture)
 
 		if (needEnhance) {
 			GHQTexInfo ghqTexInfo;
-			if (txfilter_filter((u8*)pDest, tmptex.width, tmptex.height,
+			if (txfilter_filter((u8*)pDest, tmptex.realWidth, tmptex.realHeight,
 							(u16)u32(glInternalFormat), (uint64)_pTexture->crc,
 							&ghqTexInfo) != 0 && ghqTexInfo.data != nullptr) {
 				if (ghqTexInfo.width % 2 != 0 &&
@@ -1191,12 +1254,12 @@ void TextureCache::_load(u32 _tile, CachedTexture *_pTexture)
 				params.dataType = DatatypeParam(ghqTexInfo.pixel_type);
 				params.data = ghqTexInfo.data;
 				gfxContext.init2DTexture(params);
-				_updateCachedTexture(ghqTexInfo, _pTexture, tmptex.width, tmptex.height);
+				_updateCachedTexture(ghqTexInfo, _pTexture, f32(ghqTexInfo.width) / f32(tmptex.realWidth));
 				bLoaded = true;
 			}
 		}
 		if (!bLoaded) {
-			if (tmptex.width % 2 != 0 &&
+			if (tmptex.realWidth % 2 != 0 &&
 				glInternalFormat != internalcolorFormat::RGBA8 &&
 				m_curUnpackAlignment > 1)
 				gfxContext.setTextureUnpackAlignment(2);
@@ -1206,8 +1269,8 @@ void TextureCache::_load(u32 _tile, CachedTexture *_pTexture)
 			params.mipMapLevel = mipLevel;
 			params.mipMapLevels = _pTexture->max_level + 1;
 			params.msaaLevel = 0;
-			params.width = tmptex.width;
-			params.height = tmptex.height;
+			params.width = tmptex.realWidth;
+			params.height = tmptex.realHeight;
 			params.internalFormat = gfxContext.convertInternalTextureFormat(u32(glInternalFormat));
 			params.format = colorFormat::RGBA;
 			params.dataType = glType;
@@ -1226,14 +1289,16 @@ void TextureCache::_load(u32 _tile, CachedTexture *_pTexture)
 		tmptex.maskT = mipTile.maskt;
 		TileSizes sizes;
 		_calcTileSizes(tileMipLevel, sizes, nullptr);
+		tmptex.width = sizes.width;
 		tmptex.clampWidth = sizes.clampWidth;
+		tmptex.height = sizes.height;
 		tmptex.clampHeight = sizes.clampHeight;
 		// Insure mip-map levels size consistency.
-		if (tmptex.width > 1)
-			tmptex.width >>= 1;
-		if (tmptex.height > 1)
-			tmptex.height >>= 1;
-		_pTexture->textureBytes += (tmptex.width * tmptex.height) << sizeShift;
+		if (tmptex.realWidth > 1)
+			tmptex.realWidth >>= 1;
+		if (tmptex.realHeight > 1)
+			tmptex.realHeight >>= 1;
+		_pTexture->textureBytes += (tmptex.realWidth * tmptex.realHeight) << sizeShift;
 	}
 	if (m_curUnpackAlignment > 1)
 		gfxContext.setTextureUnpackAlignment(m_curUnpackAlignment);
@@ -1248,7 +1313,7 @@ struct TextureParams
 };
 
 static
-u64 _calculateCRC(u32 _t, const TextureParams & _params, u32 _bytes)
+u32 _calculateCRC(u32 _t, const TextureParams & _params, u32 _bytes)
 {
 	const bool rgba32 = gSP.textureTile[_t]->size == G_IM_SIZ_32b;
 	if (_bytes == 0) {
@@ -1259,7 +1324,7 @@ u64 _calculateCRC(u32 _t, const TextureParams & _params, u32 _bytes)
 		_bytes >>= 1;
 	const u32 tMemMask = (gDP.otherMode.textureLUT == G_TT_NONE && !rgba32) ? 0x1FF : 0xFF;
 	const u64 *src = (u64*)&TMEM[gSP.textureTile[_t]->tmem & tMemMask];
-	u64 crc = UINT64_MAX;
+	u32 crc = 0xFFFFFFFF;
 	crc = CRC_Calculate(crc, src, _bytes);
 
 	if (rgba32) {
@@ -1269,9 +1334,9 @@ u64 _calculateCRC(u32 _t, const TextureParams & _params, u32 _bytes)
 
 	if (gDP.otherMode.textureLUT != G_TT_NONE || gSP.textureTile[_t]->format == G_IM_FMT_CI) {
 		if (gSP.textureTile[_t]->size == G_IM_SIZ_4b)
-			crc = CRC_Calculate( crc, &gDP.paletteCRC16[gSP.textureTile[_t]->palette], sizeof(u64) );
+			crc = CRC_Calculate( crc, &gDP.paletteCRC16[gSP.textureTile[_t]->palette], 4 );
 		else if (gSP.textureTile[_t]->size == G_IM_SIZ_8b)
-			crc = CRC_Calculate( crc, &gDP.paletteCRC256, sizeof(u64) );
+			crc = CRC_Calculate( crc, &gDP.paletteCRC256, 4 );
 	}
 
 	if (config.generalEmulation.enableLOD != 0 && gSP.texture.level > 1 && _t > 0)
@@ -1321,18 +1386,14 @@ void TextureCache::activateTexture(u32 _t, CachedTexture *_pTexture)
 
 		// Set clamping modes
 		params.wrapS = _pTexture->clampS ? textureParameters::WRAP_CLAMP_TO_EDGE :
-			_pTexture->mirrorS ? textureParameters::WRAP_MIRRORED_REPEAT : textureParameters::WRAP_REPEAT;
+			_pTexture->mirrorS ? textureParameters::WRAP_MIRRORED_REPEAT
+			: textureParameters::WRAP_REPEAT;
 		params.wrapT = _pTexture->clampT ? textureParameters::WRAP_CLAMP_TO_EDGE :
-			_pTexture->mirrorT ? textureParameters::WRAP_MIRRORED_REPEAT : textureParameters::WRAP_REPEAT;
+			_pTexture->mirrorT ? textureParameters::WRAP_MIRRORED_REPEAT
+			: textureParameters::WRAP_REPEAT;
 
-		if (config.texture.maxAnisotropyF > 0.0f) {
-			switch (dwnd().getDrawer().getDrawingState()) {
-				case DrawingState::Triangle:
-				case DrawingState::ScreenSpaceTriangle:
-					params.maxAnisotropy = Parameter(config.texture.maxAnisotropyF);
-					break;
-			}
-		}
+		if (dwnd().getDrawer().getDrawingState() == DrawingState::Triangle && config.texture.maxAnisotropyF > 0.0f)
+			params.maxAnisotropy = Parameter(config.texture.maxAnisotropyF);
 	}
 
 	gfxContext.setTextureParameters(params);
@@ -1363,15 +1424,15 @@ void TextureCache::activateMSDummy(u32 _t)
 void TextureCache::_updateBackground()
 {
 	u32 numBytes = gSP.bgImage.width * gSP.bgImage.height << gSP.bgImage.size >> 1;
-	u64 crc;
+	u32 crc;
 
-	crc = CRC_Calculate( UINT64_MAX, &RDRAM[gSP.bgImage.address], numBytes );
+	crc = CRC_Calculate( 0xFFFFFFFF, &RDRAM[gSP.bgImage.address], numBytes );
 
 	if (gDP.otherMode.textureLUT != G_TT_NONE || gSP.bgImage.format == G_IM_FMT_CI) {
 		if (gSP.bgImage.size == G_IM_SIZ_4b)
-			crc = CRC_Calculate( crc, &gDP.paletteCRC16[gSP.bgImage.palette], sizeof(u64) );
+			crc = CRC_Calculate( crc, &gDP.paletteCRC16[gSP.bgImage.palette], 4 );
 		else if (gSP.bgImage.size == G_IM_SIZ_8b)
-			crc = CRC_Calculate( crc, &gDP.paletteCRC256, sizeof(u64) );
+			crc = CRC_Calculate( crc, &gDP.paletteCRC256, 4 );
 	}
 
 	u32 params[4] = {gSP.bgImage.width, gSP.bgImage.height, gSP.bgImage.format, gSP.bgImage.size};
@@ -1420,17 +1481,17 @@ void TextureCache::_updateBackground()
 	pCurrent->tMem = 0;
 	pCurrent->frameBufferTexture = CachedTexture::fbNone;
 
-	pCurrent->scaleS = 1.0f / (f32)(pCurrent->width);
-	pCurrent->scaleT = 1.0f / (f32)(pCurrent->height);
+	pCurrent->realWidth = gSP.bgImage.width;
+	pCurrent->realHeight = gSP.bgImage.height;
 
-	pCurrent->hdRatioS = 1.0f;
-	pCurrent->hdRatioT = 1.0f;
+	pCurrent->scaleS = 1.0f / (f32)(pCurrent->realWidth);
+	pCurrent->scaleT = 1.0f / (f32)(pCurrent->realHeight);
 
 	pCurrent->shiftScaleS = 1.0f;
 	pCurrent->shiftScaleT = 1.0f;
 
-	pCurrent->offsetS = 0.0f;
-	pCurrent->offsetT = 0.0f;
+	pCurrent->offsetS = 0.5f;
+	pCurrent->offsetT = 0.5f;
 
 	_loadBackground(pCurrent);
 	activateTexture(0, pCurrent);
@@ -1464,11 +1525,9 @@ void TextureCache::update(u32 _t)
 			if (m_toggleDumpTex) {
 				displayLoadProgress(L"Texture dump - ON\n");
 				_clear();
-				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 			else {
 				displayLoadProgress(L"Texture dump - OFF\n");
-				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
 	}
@@ -1486,7 +1545,7 @@ void TextureCache::update(u32 _t)
 		return;
 	}
 
-	if (_t == 1 && needReplaceTex1ByTex0()) {
+	if (gDP.otherMode.textureLOD == G_TL_LOD && gSP.texture.level == 0 && !currentCombiner()->usesLOD() && _t == 1) {
 		current[1] = current[0];
 		if (current[1] != nullptr) {
 			activateTexture(1, current[1]);
@@ -1515,10 +1574,10 @@ void TextureCache::update(u32 _t)
 		(pTile->size   << 12)	|
 		(pTile->format << 14)	|
 		(gDP.otherMode.textureLUT << 17);
-	params.width = sizes.width;
-	params.height = sizes.height;
+	params.width = sizes.realWidth;
+	params.height = sizes.realHeight;
 
-	const u64 crc = _calculateCRC(_t, params, sizes.bytes);
+	const u32 crc = _calculateCRC(_t, params, sizes.bytes);
 
 	if (current[_t] != nullptr && current[_t]->crc == crc) {
 		activateTexture(_t, current[_t]);
@@ -1578,14 +1637,14 @@ void TextureCache::update(u32 _t)
 	pCurrent->tMem = pTile->tmem;
 	pCurrent->frameBufferTexture = CachedTexture::fbNone;
 
-	pCurrent->scaleS = 1.0f / (pCurrent->maskS ? f32(pow2(pCurrent->width)) : f32(pCurrent->width));
-	pCurrent->scaleT = 1.0f / (pCurrent->maskT ? f32(pow2(pCurrent->height)) : f32(pCurrent->height));
+	pCurrent->realWidth = sizes.realWidth;
+	pCurrent->realHeight = sizes.realHeight;
 
-	pCurrent->hdRatioS = 1.0f;
-	pCurrent->hdRatioT = 1.0f;
+	pCurrent->scaleS = 1.0f / (f32)(pCurrent->realWidth);
+	pCurrent->scaleT = 1.0f / (f32)(pCurrent->realHeight);
 
-	pCurrent->offsetS = 0.0f;
-	pCurrent->offsetT = 0.0f;
+	pCurrent->offsetS = 0.5f;
+	pCurrent->offsetT = 0.5f;
 
 	_load(_t, pCurrent);
 	activateTexture( _t, pCurrent );
@@ -1613,9 +1672,4 @@ void getTextureShiftScale(u32 t, const TextureCache & cache, f32 & shiftScaleS, 
 		shiftScaleT = (f32)(1 << (16 - gSP.textureTile[t]->shiftt));
 	else if (gSP.textureTile[t]->shiftt > 0)
 		shiftScaleT /= (f32)(1 << gSP.textureTile[t]->shiftt);
-}
-
-bool needReplaceTex1ByTex0()
-{
-	return gSP.texture.level == 0 && gDP.otherMode.textureLOD == G_TL_LOD && gDP.otherMode.textureDetail == G_TD_CLAMP;
 }
