@@ -12,7 +12,7 @@
 #define glGetProcAddress wglGetProcAddress
 #define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress("gl"#proc_name)
 
-#elif defined(VERO4K) || defined(ODROID) || defined(VC) || defined(AMLOGIC) || 1
+#elif defined(VERO4K) || defined(ODROID) || defined(VC) || defined(USE_GENERIC_GLESV2) || 1
 
 #include <dlfcn.h>
 #define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) dlsym(gles2so, "gl"#proc_name);
@@ -37,7 +37,7 @@ typedef struct __GLXFBConfigRec *GLXFBConfig;
 #define GLX_GLXEXT_PROTOTYPES
 #include <GL/glxext.h>
 #define glGetProcAddress glXGetProcAddress
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress((const GLubyte*)#proc_name)
+#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress((const GLubyte*)"gl"#proc_name)
 
 #elif defined(OS_MAC_OS_X)
 #include <dlfcn.h>
@@ -51,7 +51,7 @@ static void* AppleGLGetProcAddress (const char *name)
 	return (image ? dlsym(image, name) : NULL);
 }
 #define glGetProcAddress AppleGLGetProcAddress
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress(#proc_name)
+#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type) glGetProcAddress("gl"#proc_name)
 
 #elif defined(OS_IOS)
 #include <dlfcn.h>
@@ -62,11 +62,11 @@ static void* IOSGLGetProcAddress (const char *name)
 }
 
 #define glGetProcAddress IOSGLGetProcAddress
-#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type)glGetProcAddress(#proc_name)
+#define GL_GET_PROC_ADR(proc_type, proc_name) ptr##proc_name = (proc_type)glGetProcAddress("gl"#proc_name)
 
 #endif
 
-//GL Fucntions
+//GL Functions
 PFNGLBLENDFUNCPROC ptrBlendFunc;
 PFNGLPIXELSTOREIPROC ptrPixelStorei;
 PFNGLCLEARCOLORPROC ptrClearColor;

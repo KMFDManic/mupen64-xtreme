@@ -15,6 +15,8 @@ int skip;
 int render;
 EXPORT BOOL CALL InitiateGFX (GFX_INFO Gfx_Info)
 {
+	skip = 0;
+	render = 1;
 	return api().InitiateGFX(Gfx_Info);
 }
 
@@ -55,7 +57,7 @@ EXPORT void CALL UpdateScreen (void)
 {
 	if (render == 1) {
 		api().UpdateScreen();
-		render = 0;
+		render = 1;
 	}
 }
 

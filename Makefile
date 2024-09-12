@@ -3,6 +3,7 @@ FORCE_GLES=1
 FORCE_GLES3=0
 LLE=0
 
+HAVE_LTCG ?= 0
 DYNAFLAGS :=
 INCFLAGS  :=
 COREFLAGS :=
@@ -120,7 +121,6 @@ ifneq (,$(findstring unix,$(platform)))
       endif
    endif
 
-
    EGL := 1
    PIC = 1
    CPUOPTS := -g
@@ -130,13 +130,22 @@ ifneq (,$(findstring unix,$(platform)))
    COREFLAGS += -DOS_LINUX -DEGL -DUNDEF_GL_GLEXT_PROTOTYPES
    WITH_DYNAREC = arm
 
-
 # Raspberry Pi
 else ifneq (,$(findstring rpi,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.so
    LDFLAGS += -shared -Wl,--version-script=$(LIBRETRO_DIR)/link.T -Wl,--no-undefined -ldl
-   GLES = 1
+   ifeq ($(FORCE_GLES3),1)
+      GLES3 = 1
+   else
+      GLES = 1
+   endif
    ifneq (,$(findstring mesa,$(platform)))
+      MESA = 1
+   endif
+   ifneq (,$(findstring rpi4,$(platform)))
+      MESA = 1
+   endif
+   ifeq ($(MESA), 1)
       GL_LIB := -lGLESv2
    else
       LLE = 0
@@ -152,8 +161,11 @@ else ifneq (,$(findstring rpi,$(platform)))
    else ifneq (,$(findstring rpi3,$(platform)))
       CPUFLAGS += -march=armv8-a+crc -mtune=cortex-a53 -mfpu=neon-fp-armv8 -mfloat-abi=hard
       HAVE_NEON = 1
+   else ifneq (,$(findstring rpi4,$(platform)))
+      CPUFLAGS += -march=armv8-a+crc -mtune=cortex-a72 -mfpu=neon-fp-armv8 -mfloat-abi=hard
+      HAVE_NEON = 1
    endif
-   COREFLAGS += -DUNDEF_GL_GLEXT_PROTOTYPES -DOS_LINUX
+   COREFLAGS += -DOS_LINUX
    ASFLAGS = -f elf -d ELF_TYPE
 
 # Nintendo Switch
@@ -179,7 +191,7 @@ else ifeq ($(platform), libnx)
 else ifneq (,$(findstring odroid64,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.so
    LDFLAGS += -shared -Wl,--version-script=$(LIBRETRO_DIR)/link.T -Wl,--no-undefined
-   BOARD := $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
+   BOARD ?= $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
    GLES = 1
    GL_LIB := -lGLESv2
    WITH_DYNAREC := aarch64
@@ -201,28 +213,56 @@ else ifneq (,$(findstring odroid64,$(platform)))
 else ifneq (,$(findstring odroid,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.so
    LDFLAGS += -shared -Wl,--version-script=$(LIBRETRO_DIR)/link.T -Wl,--no-undefined
-   BOARD := $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
+   BOARD ?= $(shell cat /proc/cpuinfo | grep -i odroid | awk '{print $$3}')
    GLES = 1
    GL_LIB := -lGLESv2
-   CPUFLAGS += -marm -mfloat-abi=hard -mfpu=neon
+   CPUFLAGS += -marm -mfloat-abi=hard
    HAVE_NEON = 1
    WITH_DYNAREC=arm
    ifneq (,$(findstring ODROIDC,$(BOARD)))
       # ODROID-C1
-      CPUFLAGS += -mcpu=cortex-a5
+      CPUFLAGS += -mcpu=cortex-a5 -mfpu=neon
    else ifneq (,$(findstring ODROID-XU,$(BOARD)))
       # ODROID-XU3 & -XU3 Lite and -XU4
       ifeq "$(shell expr `gcc -dumpversion` \>= 4.9)" "1"
-         CPUFLAGS += -march=armv7ve -mcpu=cortex-a15.cortex-a7
+         CPUFLAGS += -mcpu=cortex-a15 -mtune=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
       else
-         CPUFLAGS += -mcpu=cortex-a9
+         CPUFLAGS += -mcpu=cortex-a9 -mfpu=neon
       endif
    else
       # ODROID-U2, -U3, -X & -X2
-      CPUFLAGS += -mcpu=cortex-a9
+      CPUFLAGS += -mcpu=cortex-a9 -mfpu=neon
    endif
 
    COREFLAGS += -DOS_LINUX
+   ASFLAGS = -f elf -d ELF_TYPE
+
+# Amlogic S905/S905X/S912 (AMLGXBB/AMLGXL/AMLGXM) e.g. Khadas VIM1/2 / S905X2 (AMLG12A) & S922X/A311D (AMLG12B) e.g. Khadas VIM3 - 32-bit userspace
+else ifneq (,$(findstring AMLG,$(platform)))
+   TARGET := $(TARGET_NAME)_libretro.so
+   LDFLAGS += -shared -Wl,--version-script=$(LIBRETRO_DIR)/link.T -Wl,--no-undefined -ldl
+   CPUFLAGS += -march=armv8-a+crc -mfloat-abi=hard -mfpu=neon-fp-armv8
+
+   ifneq (,$(findstring AMLG12,$(platform)))
+      ifneq (,$(findstring AMLG12B,$(platform)))
+         CPUFLAGS += -mtune=cortex-a73.cortex-a53
+      else
+         CPUFLAGS += -mtune=cortex-a53
+      endif
+      GLES3 = 1
+   else ifneq (,$(findstring AMLGX,$(platform)))
+      CPUFLAGS += -mtune=cortex-a53
+      ifneq (,$(findstring AMLGXM,$(platform)))
+         GLES3 = 1
+      else
+         GLES = 1
+      endif
+   endif
+
+   GL_LIB := -lGLESv2
+   HAVE_NEON = 1
+   WITH_DYNAREC=arm
+   COREFLAGS += -DUSE_GENERIC_GLESV2 -DOS_LINUX
    ASFLAGS = -f elf -d ELF_TYPE
 
 # Amlogic S905/S912
@@ -234,8 +274,33 @@ else ifneq (,$(findstring amlogic,$(platform)))
    CPUFLAGS += -marm -mfloat-abi=hard -mfpu=neon
    HAVE_NEON = 1
    WITH_DYNAREC=arm
-   COREFLAGS += -DAMLOGIC -DOS_LINUX -DUNDEF_GL_GLEXT_PROTOTYPES
+   COREFLAGS += -DUSE_GENERIC_GLESV2 -DOS_LINUX
    CPUFLAGS += -march=armv8-a -mcpu=cortex-a53 -mtune=cortex-a53
+
+# Rockchip RK3288 e.g. Asus Tinker Board / RK3328 e.g. PINE64 Rock64 / RK3399 e.g. PINE64 RockPro64 - 32-bit userspace
+else ifneq (,$(findstring RK,$(platform)))
+   TARGET := $(TARGET_NAME)_libretro.so
+   LDFLAGS += -shared -Wl,--version-script=$(LIBRETRO_DIR)/link.T -Wl,--no-undefined -ldl
+
+   ifneq (,$(findstring RK33,$(platform)))
+      CPUFLAGS += -march=armv8-a+crc -mfloat-abi=hard -mfpu=neon-fp-armv8
+      ifneq (,$(findstring RK3399,$(platform)))
+         CPUFLAGS += -mtune=cortex-a72.cortex-a53
+         GLES3 = 1
+      else ifneq (,$(findstring RK3328,$(platform)))
+         CPUFLAGS += -mtune=cortex-a53
+         GLES = 1
+      endif
+   else ifneq (,$(findstring RK3288,$(platform)))
+      CPUFLAGS += -march=armv7ve -mtune=cortex-a17 -mfloat-abi=hard -mfpu=neon-vfpv4
+      GLES3 = 1
+   endif
+
+   GL_LIB := -lGLESv2
+   HAVE_NEON = 1
+   WITH_DYNAREC=arm
+   COREFLAGS += -DUSE_GENERIC_GLESV2 -DOS_LINUX
+   ASFLAGS = -f elf -d ELF_TYPE
 
 # OS X
 else ifneq (,$(findstring osx,$(platform)))
@@ -407,7 +472,7 @@ ifeq ($(DEBUG), 1)
 else
    CPUOPTS += -DNDEBUG -fsigned-char -ffast-math -fno-strict-aliasing -fomit-frame-pointer -fvisibility=hidden
 ifneq ($(platform), libnx)
-   CPUOPTS := -O2 $(CPUOPTS)
+   CPUOPTS := -O3 $(CPUOPTS)
 endif
    CXXFLAGS += -fvisibility-inlines-hidden
 endif
@@ -415,6 +480,10 @@ endif
 # set C/C++ standard to use
 CFLAGS += -std=gnu11
 CXXFLAGS += -std=gnu++11
+
+ifeq ($(HAVE_LTCG),1)
+   CPUFLAGS += -flto
+endif
 
 ifeq ($(PIC), 1)
    fpic = -fPIC
@@ -430,7 +499,7 @@ ifeq (,$(findstring android,$(platform)))
    LDFLAGS    += -lpthread
 endif
 
-LDFLAGS    += $(fpic) -O2 -lz -lpng
+LDFLAGS    += $(fpic) -O3 -lz -lpng $(CPUOPTS) $(PLATCFLAGS) $(CPUFLAGS)
 
 all: $(TARGET)
 $(TARGET): $(OBJECTS)

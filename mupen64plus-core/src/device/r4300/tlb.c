@@ -143,7 +143,7 @@ uint32_t virtual_to_physical_address(struct r4300_core* r4300, uint32_t address,
     /* 
       XXX HACK/HOTFIX: Prevents OoT crash under certain circumstances with NEW_DYNAREC...
       This will also fix Rat Attack for NEW_DYNAREC, interpreter needs to ignore TLB_refill_exception
-      as well, under these circumstances. Is a simliar using_tlb there?
+      as well, under these circumstances. Is a similar using_tlb there?
       Needs fixes upstream, but this will do for now.
     */
 #ifdef NEW_DYNAREC

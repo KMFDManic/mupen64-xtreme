@@ -11,7 +11,7 @@ ColorBufferReaderWithEGLImage::ColorBufferReaderWithEGLImage(CachedTexture *_pTe
 	: graphics::ColorBufferReader(_pTexture)
 	, m_bindTexture(_bindTexture)
 	, m_image(nullptr)
-	, m_usage(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN)
+	, m_usage(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN|AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE)
 	, m_bufferLocked(false)
 {
 	_initBuffers();
@@ -24,7 +24,7 @@ ColorBufferReaderWithEGLImage::~ColorBufferReaderWithEGLImage()
 
 void ColorBufferReaderWithEGLImage::_initBuffers()
 {
-	AHardwareBuffer_Desc bufferDesc{m_pTexture->realWidth, m_pTexture->realHeight,
+	AHardwareBuffer_Desc bufferDesc{m_pTexture->width, m_pTexture->height,
 		1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
 		m_usage,
 		0,0};
@@ -48,19 +48,18 @@ const u8 * ColorBufferReaderWithEGLImage::_readPixels(const ReadColorBufferParam
 	void* gpuData = nullptr;
 
 	if (!_params.sync) {
-		m_bindTexture->bind(graphics::Parameter(0), graphics::Parameter(GL_TEXTURE_2D), m_pTexture->name);
-		glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, m_image);
-		m_bindTexture->bind(graphics::Parameter(0), graphics::Parameter(GL_TEXTURE_2D), ObjectHandle());
-
-		m_hardwareBuffer.lock(m_usage, &gpuData);
+		m_bindTexture->bind(graphics::Parameter(0), graphics::Parameter(GL_TEXTURE_EXTERNAL_OES), m_pTexture->name);
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, m_image);
+		m_bindTexture->bind(graphics::Parameter(0), graphics::Parameter(GL_TEXTURE_EXTERNAL_OES), ObjectHandle());
+		m_hardwareBuffer.lock(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, &gpuData);
 		m_bufferLocked = true;
 		_heightOffset = static_cast<u32>(_params.y0);
-		_stride = m_pTexture->realWidth;
+		_stride = m_pTexture->width;
 	} else {
 		gpuData = m_pixelData.data();
 		glReadPixels(_params.x0, _params.y0, _params.width, _params.height, format, type, gpuData);
 		_heightOffset = 0;
-		_stride = m_pTexture->realWidth;
+		_stride = m_pTexture->width;
 	}
 
 	return reinterpret_cast<u8*>(gpuData);

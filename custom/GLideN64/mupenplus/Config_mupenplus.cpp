@@ -177,6 +177,10 @@ extern "C" void Config_LoadConfig()
 
 	config.graphics2D.bgMode = BackgroundMode;
 
+	config.textureFilter.txEnhancedTextureFileStorage = EnableEnhancedTextureStorage;
+	config.textureFilter.txHiresTextureFileStorage = EnableEnhancedHighResStorage;
+	config.frameBufferEmulation.nativeResFactor = EnableNativeResFactor;
+
 	config.generalEmulation.hacks = hacks;
 
 	// Late

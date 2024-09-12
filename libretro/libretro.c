@@ -23,7 +23,6 @@
 #include "api/callbacks.h"
 #include "main/cheat.h"
 #include "main/version.h"
-#include "main/util.h"
 #include "main/savestates.h"
 #include "main/mupen64plus.ini.h"
 #include "api/m64p_config.h"
@@ -93,9 +92,6 @@ uint32_t retro_screen_width = 320;
 uint32_t retro_screen_height = 240;
 float retro_screen_aspect = 4.0 / 3.0;
 
-char* retro_dd_path_img;
-char* retro_dd_path_rom;
-
 uint32_t bilinearMode = 0;
 uint32_t EnableHWLighting = 0;
 uint32_t CorrectTexrectCoords = 0;
@@ -125,6 +121,10 @@ uint32_t CountPerScanlineOverride = 0;
 uint32_t TurboBoost = 0;
 uint32_t GLideN64IniBehaviour = 0;
 uint32_t BackgroundMode = 0; // 0 is bgOnePiece
+uint32_t EnableEnhancedTextureStorage;
+uint32_t EnableEnhancedHighResStorage;
+uint32_t ForceDisableExtraMem = 0;
+uint32_t EnableNativeResFactor = 0;
 
 // Overscan options
 #define GLN64_OVERSCAN_SCALING "0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44|45|46|47|48|49|50"
@@ -191,7 +191,7 @@ static void setup_variables(void)
 #ifdef HAVE_LIBNX
             "Frame Duplication; True|False" },
 #else
-            "Frame Duplication; True|False" },
+            "Frame Duplication; False|True" },
 #endif
         { CORE_NAME "-Framerate",
             "Framerate; Original|Fullspeed" },
@@ -204,14 +204,14 @@ static void setup_variables(void)
 #ifdef VC
             "Framebuffer Emulation; False|True" },
 #else
-            "Framebuffer Emulation; False|True" },
+            "Framebuffer Emulation; True|False" },
 #endif
 
         { CORE_NAME "-EnableLODEmulation",
             "LOD Emulation; True|False" },
         { CORE_NAME "-EnableCopyColorToRDRAM",
 #ifndef HAVE_OPENGLES
-            "Color buffer to RDRAM; Color buffer to RDRAM; Off|Async|Sync" },
+            "Color buffer to RDRAM; Async|Sync|Off" },
 #else
             "Color buffer to RDRAM; Off|Async|Sync" },
 #endif
@@ -234,14 +234,14 @@ static void setup_variables(void)
         { CORE_NAME "-EnableLegacyBlending",
             "Less accurate blending mode; False|True" },
         { CORE_NAME "-EnableFragmentDepthWrite",
-            "GPU shader depth write; False|True" },
+            "GPU shader depth write; True|False" },
 #endif
 #ifndef VC
         { CORE_NAME "-EnableShadersStorage",
             "Cache GPU Shaders; True|False" },
 #endif
         { CORE_NAME "-EnableTextureCache",
-            "Cache Textures; False|True" },
+            "Cache Textures; True|False" },
         { CORE_NAME "-EnableOverscan",
             "Overscan; Enabled|Disabled" },
         { CORE_NAME "-OverscanTop",
@@ -271,6 +271,10 @@ static void setup_variables(void)
             "Use High-Res textures; False|True" },
         { CORE_NAME "-txHiresFullAlphaChannel",
             "Use High-Res Full Alpha Channel; False|True" },
+        { CORE_NAME "-EnableEnhancedTextureStorage",
+            "Use enhanced Texture Storage; False|True" },
+        { CORE_NAME "-EnableEnhancedHighResStorage",
+            "Use enhanced Hi-Res Storage; False|True" },
         { CORE_NAME "-astick-deadzone",
            "Analog Deadzone (percent); 15|20|25|30|0|5|10"},
         { CORE_NAME "-astick-sensitivity",
@@ -285,6 +289,8 @@ static void setup_variables(void)
            "Up C Button; C4|C1|C2|C3"},
         { CORE_NAME "-alt-map",
            "Independent C-button Controls; False|True" },
+        { CORE_NAME "-ForceDisableExtraMem",
+           "Disable Expansion Pak; False|True"},
         { CORE_NAME "-pak1",
            "Player 1 Pak; memory|rumble|none"},
         { CORE_NAME "-pak2",
@@ -294,12 +300,12 @@ static void setup_variables(void)
         { CORE_NAME "-pak4",
            "Player 4 Pak; none|memory|rumble"},
         { CORE_NAME "-CountPerOp",
-            "Xtreme OverClock; 0|1|2|3|4|5|6|7|8|9|10|" },
+           "Xtreme OverClock; 0|1|2|3|4|5|6|7|8|9|10|" },
         { CORE_NAME "LudicrousN64-TurboBoost",
-            "Xtreme TurboBoost; 0|X1|X2|X3|X4|X5|X6" },
+           "Xtreme TurboBoost; 0|X1|X2|X3|X4|X5|X6" },
         { CORE_NAME "-GLideN64IniBehaviour",
-            "Xtreme Ini Control; late|early|disabled"},
-       { NULL, NULL },
+           "Xtreme Ini Control; late|early|disabled"},
+        { NULL, NULL },
     };
 
     static const struct retro_controller_description port[] = {
@@ -328,11 +334,10 @@ static bool emu_step_load_data()
 
     log_cb(RETRO_LOG_DEBUG, CORE_NAME ": [EmuThread] M64CMD_ROM_OPEN\n");
 
-    ret = CoreDoCommand(M64CMD_ROM_OPEN, game_size, (void*)game_data);
-    if (ret)
+    if(CoreDoCommand(M64CMD_ROM_OPEN, game_size, (void*)game_data))
     {
         if (log_cb)
-            log_cb(RETRO_LOG_ERROR, CORE_NAME ": failed to load ROM (err=%i)\n", ret);
+            log_cb(RETRO_LOG_ERROR, CORE_NAME ": failed to load ROM\n");
         goto load_fail;
     }
 
@@ -341,11 +346,10 @@ static bool emu_step_load_data()
 
     log_cb(RETRO_LOG_DEBUG, CORE_NAME ": [EmuThread] M64CMD_ROM_GET_HEADER\n");
 
-    ret = CoreDoCommand(M64CMD_ROM_GET_HEADER, sizeof(ROM_HEADER), &ROM_HEADER);
-    if (ret)
+    if(CoreDoCommand(M64CMD_ROM_GET_HEADER, sizeof(ROM_HEADER), &ROM_HEADER))
     {
         if (log_cb)
-            log_cb(RETRO_LOG_ERROR, CORE_NAME ": failed to query ROM header information (err=%i)\n", ret);
+            log_cb(RETRO_LOG_ERROR, CORE_NAME ": failed to query ROM header information\n");
         goto load_fail;
     }
 
@@ -354,7 +358,6 @@ static bool emu_step_load_data()
 load_fail:
     free(game_data);
     game_data = NULL;
-    CoreShutdown();
     //stop = 1;
 
     return false;
@@ -402,65 +405,10 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_c
 void retro_set_input_poll(retro_input_poll_t cb) { poll_cb = cb; }
 void retro_set_input_state(retro_input_state_t cb) { input_cb = cb; }
 
-bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info)
-{
-    if(retro_dd_path_img)
-    {
-        free(retro_dd_path_img);
-        retro_dd_path_img = NULL;
-    }
-
-    if(retro_dd_path_rom)
-    {
-        free(retro_dd_path_rom);
-        retro_dd_path_rom = NULL;
-    }
-
-    switch(game_type)
-    {
-        case RETRO_GAME_TYPE_DD:
-            if(num_info == 1)
-            {
-                retro_dd_path_img = strdup(info[0].path);
-            }
-            else if(num_info == 2)
-            {
-                retro_dd_path_img = strdup(info[0].path);
-                retro_dd_path_rom = strdup(info[1].path);
-            } else {
-                return false;
-            }
-
-            printf("Loading %s...\n", info[0].path);
-            load_file(info[1].path, (void**)&info[1].data, &info[1].size);
-            return retro_load_game(&info[1]);
-        default:
-            return false;
-    }
-
-	return false;
-}
 
 void retro_set_environment(retro_environment_t cb)
 {
     environ_cb = cb;
-
-    static const struct retro_subsystem_memory_info memory_info[] = {
-        { "srm", RETRO_MEMORY_DD },
-    };
-
-    static const struct retro_subsystem_rom_info dd_roms[] = {
-        { "Disk", "ndd", true, false, true, memory_info, 1 },
-        { "Cartridge", "n64|v64|z64|bin|u1", true, false, true, NULL, 0 },
-    };
-
-    static const struct retro_subsystem_info subsystems[] = {
-        { "N64 Disk Drive", "ndd", dd_roms, 2, RETRO_GAME_TYPE_DD },
-        {}
-    };
-
-    environ_cb(RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO, (void*)subsystems);
-
 
     setup_variables();
 }
@@ -477,8 +425,8 @@ void retro_get_system_info(struct retro_system_info *info)
 #ifndef GIT_VERSION
 #define GIT_VERSION " git"
 #endif
-    info->library_version = "2K24" GIT_VERSION;
-    info->valid_extensions = "n64|v64|z64|bin|u1";
+    info->library_version = "1.0" GIT_VERSION;
+    info->valid_extensions = "n64|v64|z64|bin|u1|ndd";
     info->need_fullpath = false;
     info->block_extract = false;
 }
@@ -547,10 +495,8 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
-    m64p_error ret = CoreShutdown();
-    if(ret && log_cb)
-        log_cb(RETRO_LOG_ERROR, CORE_NAME ": failed to shutdown core (err=%i)\n", ret);
-
+    CoreDoCommand(M64CMD_STOP, 0, NULL);
+    co_switch(game_thread); /* Let the core thread finish */
     deinit_audio_libretro();
 
     if (perf_cb.perf_log)
@@ -864,6 +810,20 @@ void update_variables()
         EnableTextureCache = !strcmp(var.value, "False") ? 0 : 1;
     }
 
+    var.key = CORE_NAME "-EnableEnhancedTextureStorage";
+    var.value = NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        EnableEnhancedTextureStorage = !strcmp(var.value, "False") ? 0 : 1;
+    }
+
+    var.key = CORE_NAME "-EnableEnhancedHighResStorage";
+    var.value = NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        EnableEnhancedHighResStorage = !strcmp(var.value, "False") ? 0 : 1;
+    }
+
     var.key = CORE_NAME "-GLideN64IniBehaviour";
     var.value = NULL;
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -909,6 +869,15 @@ void update_variables()
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
         sscanf(var.value, "%dx%d", &retro_screen_width, &retro_screen_height);
+
+        // Sanity check... not optimal since we will render at a higher res, but otherwise
+        // GLideN64 might blit a bigger image onto a smaller framebuffer
+        // This is a recent regression.
+        if(retro_screen_width == 320 && retro_screen_height == 240 ||
+           retro_screen_width == 640 && retro_screen_height == 360)
+        {
+            EnableNativeResFactor = 1; // Force factor == 1
+        }
     }
 
     var.key = CORE_NAME "-astick-deadzone";
@@ -1052,6 +1021,13 @@ var.key = CORE_NAME "LudicrousN64-TurboBoost";
         alternate_mapping = !strcmp(var.value, "False") ? 0 : 1;
     }
 
+    var.key = CORE_NAME "-ForceDisableExtraMem";
+    var.value = NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        ForceDisableExtraMem = !strcmp(var.value, "False") ? 0 : 1;
+    }
+
     update_controllers();
 }
 
@@ -1095,27 +1071,6 @@ static bool context_framebuffer_lock(void *data)
 
 bool retro_load_game(const struct retro_game_info *game)
 {
-    char* gamePath;
-    char* newPath;
-
-    // Workaround for broken subsystem on static platforms
-    if(!retro_dd_path_img)
-    {
-        gamePath = (char*)game->path;
-        newPath = (char*)calloc(1, strlen(gamePath)+5);
-        strcpy(newPath, gamePath);
-        strcat(newPath, ".ndd");
-        FILE* fileTest = fopen(newPath, "r");
-        if(!fileTest)
-        {
-            free(newPath);
-        } else {
-            fclose(fileTest);
-            // Free'd later in Mupen Core
-            retro_dd_path_img = newPath;
-        }
-    }
-
     glsm_ctx_params_t params = {0};
     format_saved_memory();
 
@@ -1151,8 +1106,6 @@ bool retro_load_game(const struct retro_game_info *game)
 
 void retro_unload_game(void)
 {
-    CoreDoCommand(M64CMD_STOP, 0, NULL);
-    co_switch(game_thread); /* Let the core thread finish */
     CoreDoCommand(M64CMD_ROM_CLOSE, 0, NULL);
     emu_initialized = false;
 }
@@ -1185,7 +1138,6 @@ void *retro_get_memory_data(unsigned type)
     switch (type)
     {
         case RETRO_MEMORY_SYSTEM_RAM: return g_dev.rdram.dram;
-        case RETRO_MEMORY_DD:
         case RETRO_MEMORY_SAVE_RAM:   return &saved_memory;
     }
     return NULL;
@@ -1196,7 +1148,6 @@ size_t retro_get_memory_size(unsigned type)
     switch (type)
     {
         case RETRO_MEMORY_SYSTEM_RAM: return RDRAM_MAX_SIZE;
-        case RETRO_MEMORY_DD:
         case RETRO_MEMORY_SAVE_RAM:   return sizeof(saved_memory);
     }
     return 0;
@@ -1260,6 +1211,7 @@ void retro_set_controller_port_device(unsigned in_port, unsigned device) {
 }
 
 unsigned retro_api_version(void) { return RETRO_API_VERSION; }
+bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info) { return false; }
 
 void retro_cheat_reset(void)
 {

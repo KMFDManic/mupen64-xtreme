@@ -66,6 +66,10 @@ extern uint32_t CountPerOp;
 extern uint32_t CountPerScanlineOverride;
 extern uint32_t GLideN64IniBehaviour;
 extern uint32_t BackgroundMode;
+extern uint32_t EnableEnhancedTextureStorage;
+extern uint32_t EnableEnhancedHighResStorage;
+extern uint32_t ForceDisableExtraMem;
+extern uint32_t EnableNativeResFactor;
 
 // Overscan Options
 extern uint32_t EnableOverscan;
@@ -73,9 +77,4 @@ extern uint32_t OverscanTop;
 extern uint32_t OverscanLeft;
 extern uint32_t OverscanRight;
 extern uint32_t OverscanBottom;
-
-// Others
-#define RETRO_MEMORY_DD 0x100 + 1
-#define RETRO_GAME_TYPE_DD  1
-
 #endif
