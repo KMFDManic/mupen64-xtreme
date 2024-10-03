@@ -174,9 +174,9 @@ static void setup_variables(void)
         { CORE_NAME "-rspmode",
             "RSP Mode; HLE" },
         { CORE_NAME "-43screensize",
-            "4:3 Resolution; 320x240|640x480|960x720|1280x960|1440x1080|1600x1200|1920x1440|2240x1680|2560x1920|2880x2160|3200x2400|3520x2640|3840x2880" },
+            "4:3 Resolution; 512x384|640x480|720x576|832x624|960x720|1152x864|1400x1050|1280x960|1440x1080|1600x1200|1920x1440|2240x1680|2560x1920|2880x2160|3200x2400|3520x2640|3840x2880|160x120|256x192|320x240|384x288|400x300" },
         { CORE_NAME "-169screensize",
-            "16:9 Resolution; 640x360|960x540|1280x720|1920x1080|2560x1440|3840x2160|4096x2160|7680x4320" },
+            "16:9 Resolution; 512×288|640x360|854×480|960x540|1280x720|1920x1080|2560x1440|3840x2160|4096x2160|7680x4320|256×144|426×240" },
         { CORE_NAME "-aspect",
             "Aspect Ratio; 4:3|16:9|16:9 adjusted" },
         { CORE_NAME "-BilinearMode",
@@ -189,29 +189,27 @@ static void setup_variables(void)
             "FXAA; 0|1" },
         { CORE_NAME "-FrameDuping",
 #ifdef HAVE_LIBNX
-            "Frame Duplication; True|False" },
+            "Frame Duplication; False|True" },
 #else
             "Frame Duplication; False|True" },
 #endif
         { CORE_NAME "-Framerate",
             "Framerate; Original|Fullspeed" },
-        { CORE_NAME "-virefresh",
-            "VI Refresh (Overclock); Auto|1500|2200|800|900|1000|1100|1200|1300|1400|1500|1600|1700|1800|1900|2000|2100|2200|2300|2400|2500|2600|2700|2800|2900|3000|3100|3200|3300|3400|3500" },
         { CORE_NAME "-NoiseEmulation",
-            "Noise Emulation; True|False" },
+            "Noise Emulation; False|True" },
 
         { CORE_NAME "-EnableFBEmulation",
 #ifdef VC
-            "Framebuffer Emulation; False|True" },
+            "Framebuffer Emulation; True|False" },
 #else
             "Framebuffer Emulation; True|False" },
 #endif
 
         { CORE_NAME "-EnableLODEmulation",
-            "LOD Emulation; True|False" },
+            "LOD Emulation; False|True" },
         { CORE_NAME "-EnableCopyColorToRDRAM",
 #ifndef HAVE_OPENGLES
-            "Color buffer to RDRAM; Async|Sync|Off" },
+            "Color buffer to RDRAM; Off|Async|Sync" },
 #else
             "Color buffer to RDRAM; Off|Async|Sync" },
 #endif
@@ -232,16 +230,16 @@ static void setup_variables(void)
             "GPU shader depth write; False|True" },
 #else
         { CORE_NAME "-EnableLegacyBlending",
-            "Less accurate blending mode; False|True" },
+            "Less accurate blending mode; True|False" },
         { CORE_NAME "-EnableFragmentDepthWrite",
-            "GPU shader depth write; True|False" },
+            "GPU shader depth write; False|True" },
 #endif
 #ifndef VC
         { CORE_NAME "-EnableShadersStorage",
-            "Cache GPU Shaders; True|False" },
+            "Cache GPU Shaders; False|True" },
 #endif
         { CORE_NAME "-EnableTextureCache",
-            "Cache Textures; True|False" },
+            "Cache Textures; False|True" },
         { CORE_NAME "-EnableOverscan",
             "Overscan; Enabled|Disabled" },
         { CORE_NAME "-OverscanTop",
@@ -255,11 +253,11 @@ static void setup_variables(void)
 
         { CORE_NAME "-MaxTxCacheSize",
 #if defined(VC)
-            "Max texture cache size; 1500|8000|4000" },
+            "Max texture cache size; 1500|4000|8000" },
 #elif defined(HAVE_LIBNX)
-            "Max texture cache size; 4000|1500|8000" },
+            "Max texture cache size; 1500|4000|8000" },
 #else
-            "Max texture cache size; 8000|4000|1500" },
+            "Max texture cache size; 1500|4000|8000" },
 #endif
         { CORE_NAME "-txFilterMode",
             "Texture filter; None|Smooth filtering 1|Smooth filtering 2|Smooth filtering 3|Smooth filtering 4|Sharp filtering 1|Sharp filtering 2" },
@@ -299,12 +297,14 @@ static void setup_variables(void)
            "Player 3 Pak; none|memory|rumble"},
         { CORE_NAME "-pak4",
            "Player 4 Pak; none|memory|rumble"},
+        { CORE_NAME "-virefresh",
+           "Xtreme Reverse OverClock VIRefresh); Auto|1500|1600|1700|1800|1900|2000|2100|2200|2300|2400|2500|2600|2700|2800|2900|3000|3100|3200|3300|3400|3500|50|100|150|200|250|300|350|400|450|500|550|600|650|700|750|800|850|900|950|1000|1050|1100|1150|1200|1250|1300|1350|1400|1450" },		   
         { CORE_NAME "-CountPerOp",
            "Xtreme OverClock; 0|1|2|3|4|5|6|7|8|9|10|" },
         { CORE_NAME "LudicrousN64-TurboBoost",
            "Xtreme TurboBoost; 0|X1|X2|X3|X4|X5|X6" },
         { CORE_NAME "-GLideN64IniBehaviour",
-           "Xtreme Ini Control; late|early|disabled"},
+           "Xtreme Ini Control; ini_config_priority|core_options_priority|disabled"},
         { NULL, NULL },
     };
 
@@ -425,7 +425,7 @@ void retro_get_system_info(struct retro_system_info *info)
 #ifndef GIT_VERSION
 #define GIT_VERSION " git"
 #endif
-    info->library_version = "1.0" GIT_VERSION;
+    info->library_version = "2K24" GIT_VERSION;
     info->valid_extensions = "n64|v64|z64|bin|u1|ndd";
     info->need_fullpath = false;
     info->block_extract = false;
@@ -828,9 +828,9 @@ void update_variables()
     var.value = NULL;
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-       if (!strcmp(var.value, "late"))
+       if (!strcmp(var.value, "ini_config_priority"))
           GLideN64IniBehaviour = 0;
-       else if (!strcmp(var.value, "early"))
+       else if (!strcmp(var.value, "core_options_priority"))
           GLideN64IniBehaviour = 1;
        else if (!strcmp(var.value, "disabled"))
           GLideN64IniBehaviour = -1;
