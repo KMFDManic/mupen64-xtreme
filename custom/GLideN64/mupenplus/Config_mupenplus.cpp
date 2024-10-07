@@ -85,8 +85,8 @@ void LoadCustomSettings(bool internal)
 						config.frameBufferEmulation.N64DepthCompare = atoi(l.value);
 					else if (!strcmp(l.name, "frameBufferEmulation\\bufferSwapMode"))
 						config.frameBufferEmulation.bufferSwapMode = atoi(l.value);
-                                        else if (!strcmp(l.name, "frameBufferEmulation\\enable"))
-                        config.frameBufferEmulation.enable = atoi(l.value);
+					else if (!strcmp(l.name, "frameBufferEmulation\\enable"))
+						config.frameBufferEmulation.enable = atoi(l.value);					
 					else if (!strcmp(l.name, "texture\\bilinearMode"))
 						config.texture.bilinearMode = atoi(l.value);
 					else if (!strcmp(l.name, "texture\\maxAnisotropy"))
