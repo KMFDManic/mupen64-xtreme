@@ -151,6 +151,7 @@ extern "C" void Config_LoadConfig()
 	config.generalEmulation.enableShadersStorage = EnableShadersStorage;
 #endif
 
+	config.frameBufferEmulation.copyAuxToRDRAM = EnableCopyAuxToRDRAM;
 	config.textureFilter.txSaveCache = EnableTextureCache;
 	
 	config.textureFilter.txFilterMode = txFilterMode;
