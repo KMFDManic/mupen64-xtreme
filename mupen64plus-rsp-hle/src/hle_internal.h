@@ -74,6 +74,8 @@ struct hle_t
 
     /* mp3.c */
     uint8_t  mp3_buffer[0x1000];
+
+    struct cached_ucodes_t cached_ucodes;
 };
 
 /* some mips interface interrupt flags */

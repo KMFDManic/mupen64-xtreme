@@ -41,7 +41,7 @@
 #define CONFIG_PARAM_VERSION     1.00
 
 #define RSP_API_VERSION   0x20000
-#define RSP_HLE_VERSION        0x020500
+#define RSP_HLE_VERSION        0x020509
 #define RSP_PLUGIN_API_VERSION 0x020000
 
 /* local variables */
@@ -144,7 +144,7 @@ void HleShowCFB(void* UNUSED(user_defined))
 
 int HleForwardTask(void* user_defined)
 {
-    return 0;
+    return -1;
 }
 
 /* DLL-exported functions */
@@ -221,9 +221,19 @@ EXPORT void CALL hleInitiateRSP(RSP_INFO Rsp_Info, unsigned int* CycleCount)
 
     g_hle.hle_gfx = 1;
     g_hle.hle_aud = 0;
+    
+    /* notify fallback plugin */
+    /*if (l_InitiateRSP) {
+        l_InitiateRSP(Rsp_Info, CycleCount);
+    }*/
 }
 
 EXPORT void CALL hleRomClosed(void)
 {
-    /* do nothing */
+     g_hle.cached_ucodes.count = 0;
+     
+    /* notify fallback plugin */
+    /*if (l_RomClosed) {
+        l_RomClosed();
+    }*/
 }
