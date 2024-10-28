@@ -997,22 +997,13 @@ void GraphicsDrawer::drawRect(int _ulx, int _uly, int _lrx, int _lry)
 	gSP.changed |= CHANGED_GEOMETRYMODE | CHANGED_VIEWPORT;
 }
 
-static
-bool texturedRectShadowMap(const GraphicsDrawer::TexturedRectParams &)
+static bool texturedRectShadowMap(const GraphicsDrawer::TexturedRectParams &)
 {
 	FrameBuffer * pCurrentBuffer = frameBufferList().getCurrent();
 	if (pCurrentBuffer != nullptr) {
 		if (gDP.textureImage.size == 2 && gDP.textureImage.address >= gDP.depthImageAddress &&
 			gDP.textureImage.address < (gDP.depthImageAddress + gDP.colorImage.width*gDP.colorImage.width * 6 / 4)) {
-
-			if (!Context::IntegerTextures)
 				return true;
-
-			pCurrentBuffer->m_pDepthBuffer->activateDepthBufferTexture(pCurrentBuffer);
-			CombinerInfo::get().setDepthFogCombiner();
-			// DepthFogCombiner does not support shader blending.
-			_legacySetBlendMode();
-			return false;
 		}
 	}
 	return false;
