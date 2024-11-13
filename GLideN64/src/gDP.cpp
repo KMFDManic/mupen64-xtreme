@@ -211,10 +211,7 @@ void gDPSetBlendColor( u32 r, u32 g, u32 b, u32 a )
 
 void gDPSetFogColor( u32 r, u32 g, u32 b, u32 a )
 {
-	gDP.fogColor.r = _FIXED2FLOATCOLOR( r, 8 );
-	gDP.fogColor.g = _FIXED2FLOATCOLOR( g, 8 );
-	gDP.fogColor.b = _FIXED2FLOATCOLOR( b, 8 );
-	gDP.fogColor.a = _FIXED2FLOATCOLOR( a, 8 );
+	gDP.fogColor.r = gDP.fogColor.g = gDP.fogColor.b = gDP.fogColor.a = 0.0f;
 
 	gDP.changed |= CHANGED_FOGCOLOR;
 
